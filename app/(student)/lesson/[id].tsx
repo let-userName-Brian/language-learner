@@ -1,8 +1,8 @@
-import { Audio } from "expo-av";
+import { useAudioPlayer } from "expo-audio";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
-import { supabase } from "../../../services/supabase";
+import { supabase } from "../../../services/supabase-init";
 
 type LessonRow = { id: string; title: string };
 type ItemRow = {
@@ -22,6 +22,7 @@ export default function LessonScreen() {
   const [items, setItems] = useState<ItemRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
+  const player = useAudioPlayer();
 
   useEffect(() => {
     if (!lessonId) return;
@@ -36,16 +37,12 @@ export default function LessonScreen() {
           .single();
         if (le) throw le;
 
-        console.log("lesson", l);
-
         const { data: it, error: ie } = await supabase
           .from("items")
           .select("*")
-          .eq("lesson_id", lessonId) // ✅ lessonId is now a string
+          .eq("lesson_id", lessonId)
           .order("id");
         if (ie) throw ie;
-
-        console.log("items", it);
 
         setLesson(l as LessonRow);
         setItems((it || []) as ItemRow[]);
@@ -64,17 +61,8 @@ export default function LessonScreen() {
     const uri =
       first.media?.audio_classical || first.media?.audio_ecclesiastical;
     if (!uri) return;
-    const { sound } = await Audio.Sound.createAsync({ uri });
-    await sound.playAsync();
-    sound.setOnPlaybackStatusUpdate((s) => {
-      if (
-        "isLoaded" in s &&
-        s.isLoaded &&
-        "didJustFinish" in s &&
-        s.didJustFinish
-      )
-        sound.unloadAsync();
-    });
+    player.replace({ uri });
+    player.play();
   };
 
   if (loading)

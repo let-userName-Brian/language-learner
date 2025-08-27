@@ -1,22 +1,19 @@
-import { Audio } from "expo-av";
+import { useAudioPlayer } from "expo-audio";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { ItemRow } from "../constants/types";
 
 export default function SentenceCard({ item }: { item: ItemRow }) {
   const [glossIndex, setGlossIndex] = useState<number | null>(null);
+  const player = useAudioPlayer();
 
   const words = item.latin.split(" ");
 
   const playAudio = async () => {
     const uri = item.media?.audio_classical || item.media?.audio_ecclesiastical;
     if (!uri) return;
-    const { sound } = await Audio.Sound.createAsync({ uri });
-    await sound.playAsync();
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isLoaded || !status.didJustFinish) return;
-      sound.unloadAsync();
-    });
+    player.replace({ uri });
+    player.play();
   };
 
   return (

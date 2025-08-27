@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ItemRow, LessonRow } from "../constants/types";
-import { supabase } from "../services/supabase";
+import { supabase } from "../services/supabase-init";
 
 export function useLesson(lessonId: string) {
   const [lesson, setLesson] = useState<LessonRow | null>(null);

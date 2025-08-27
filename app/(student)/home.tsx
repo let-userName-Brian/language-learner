@@ -1,7 +1,13 @@
 import { Link } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
-import { supabase } from "../../services/supabase";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  Text,
+  View,
+} from "react-native";
+import { supabase } from "../../services/supabase-init";
 
 type LessonRow = { id: string; title: string; unit_id: string; order: number };
 
@@ -15,7 +21,6 @@ export default function HomeScreen() {
       setLoading(true);
       setErr(null);
       try {
-        // adjust this query if you want a specific course/unit
         const { data, error } = await supabase
           .from("lessons")
           .select("*")
@@ -30,10 +35,19 @@ export default function HomeScreen() {
     })();
   }, []);
 
-  if (loading) {
-    return <View style={{flex:1, justifyContent:"center", alignItems:"center"}}><ActivityIndicator/></View>;
-  }
-  if (err) return <View style={{ padding: 16 }}><Text>{err}</Text></View>;
+  if (loading)
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+
+  if (err)
+    return (
+      <View style={{ padding: 16 }}>
+        <Text>{err}</Text>
+      </View>
+    );
 
   return (
     <FlatList
@@ -41,9 +55,13 @@ export default function HomeScreen() {
       keyExtractor={(l) => l.id}
       contentContainerStyle={{ padding: 16, gap: 12 }}
       renderItem={({ item }) => (
-        <Link href={`/(tabs)/lesson/${item.id}`} asChild>
-          <Pressable style={{ padding: 16, backgroundColor: "#eee", borderRadius: 12 }}>
-            <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.title}</Text>
+        <Link href={`/lesson/${item.id}`} asChild>
+          <Pressable
+            style={{ padding: 16, backgroundColor: "#eee", borderRadius: 12 }}
+          >
+            <Text style={{ fontSize: 16, fontWeight: "600" }}>
+              {item.title}
+            </Text>
           </Pressable>
         </Link>
       )}
