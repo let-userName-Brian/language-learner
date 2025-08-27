@@ -7,7 +7,6 @@ export default function AuthLayout() {
       <Stack.Screen name="teacher-signup" options={{ title: "Sign Up" }} />
       <Stack.Screen name="teacher-signin" options={{ title: "Sign In" }} />
       <Stack.Screen name="parent-signin" options={{ title: "Sign In" }} />
-      <Stack.Screen name="confirm-email" options={{ title: "Confirm Email", headerBackVisible: false }} />
       <Stack.Screen
         name="accept-invite"
         options={{ title: "Accept Invite", headerBackVisible: false }}

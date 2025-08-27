@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
@@ -135,130 +136,357 @@ export default function TeacherSignUp() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12, justifyContent: "center" }}>
-      <Text style={{ fontSize: 22, fontWeight: "700", marginBottom: 8 }}>
-        Teacher Sign Up
-      </Text>
-
-      <Text>School</Text>
-      <View style={{ borderWidth: 1, borderColor: "#ccc", borderRadius: 8 }}>
-        <AccessiblePicker
-          selectedValue={schoolSlug}
-          onValueChange={setSchoolSlug}
-          items={schools.map((s) => ({ label: s.name, value: s.slug }))}
-          accessibilityLabel="Select your school"
-          placeholder="Choose your school"
-        />
+    <ScrollView 
+      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
+      contentContainerStyle={{ 
+        padding: 24,
+        paddingTop: 60,
+      }}
+    >
+      {/* Header */}
+      <View style={{ 
+        alignItems: "center", 
+        marginBottom: 40 
+      }}>
+        <View style={{
+          width: 80,
+          height: 80,
+          backgroundColor: "#2196F3",
+          borderRadius: 40,
+          justifyContent: "center",
+          alignItems: "center",
+          marginBottom: 20,
+          shadowColor: "#2196F3",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+        }}>
+          <Text style={{ fontSize: 36, color: "white" }}>🎓</Text>
+        </View>
+        
+        <Text style={{ 
+          fontSize: 28, 
+          fontWeight: "700", 
+          color: "#212529",
+          marginBottom: 8,
+          textAlign: "center"
+        }}>
+          Join as Teacher
+        </Text>
+        
+        <Text style={{ 
+          fontSize: 16, 
+          color: "#6c757d",
+          textAlign: "center",
+          lineHeight: 22
+        }}>
+          Create your educator account
+        </Text>
       </View>
 
-      <Text>First Name</Text>
-      <TextInput
-        value={firstName}
-        onChangeText={setFirstName}
-        placeholder="e.g., Jordan"
-        autoCapitalize="words"
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          borderRadius: 8,
-          padding: 12,
-        }}
-      />
-
-      <Text>Last Name</Text>
-      <TextInput
-        value={lastName}
-        onChangeText={setLastName}
-        placeholder="e.g., Smith"
-        autoCapitalize="words"
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          borderRadius: 8,
-          padding: 12,
-        }}
-      />
-
-      <Text>Email</Text>
-      <TextInput
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        placeholder="teacher@school.org"
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          borderRadius: 8,
-          padding: 12,
-        }}
-      />
-
-      <Text>Password</Text>
-      <TextInput
-        value={pw}
-        onChangeText={setPw}
-        placeholder="At least 8 characters"
-        secureTextEntry
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          borderRadius: 8,
-          padding: 12,
-        }}
-      />
-
-      <Text>Confirm Password</Text>
-      <TextInput
-        value={pw2}
-        onChangeText={setPw2}
-        secureTextEntry
-        style={{
-          borderWidth: 1,
-          borderColor: "#ccc",
-          borderRadius: 8,
-          padding: 12,
-        }}
-      />
-
-      <Pressable
-        onPress={submit}
-        disabled={!canSubmit}
-        style={{
-          marginTop: 16,
-          padding: 16,
-          backgroundColor: "#0a7",
-          borderRadius: 12,
-          opacity: canSubmit ? 1 : 0.5,
-        }}
-      >
-        {busy ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text
-            style={{ color: "#fff", textAlign: "center", fontWeight: "700" }}
-          >
-            Create Teacher Account
+      {/* Form Container */}
+      <View style={{
+        backgroundColor: "white",
+        borderRadius: 16,
+        padding: 24,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        marginBottom: 24,
+      }}>
+        {/* School Selection */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ 
+            fontSize: 16, 
+            fontWeight: "600", 
+            color: "#212529",
+            marginBottom: 8 
+          }}>
+            School
           </Text>
-        )}
-      </Pressable>
+          <View style={{ 
+            borderWidth: 2, 
+            borderColor: schoolSlug ? "#2196F3" : "#e9ecef", 
+            borderRadius: 12,
+            backgroundColor: "#f8f9fa",
+          }}>
+            <AccessiblePicker
+              selectedValue={schoolSlug}
+              onValueChange={setSchoolSlug}
+              items={schools.map((s) => ({ label: s.name, value: s.slug }))}
+              accessibilityLabel="Select your school"
+              placeholder="Choose your school"
+            />
+          </View>
+        </View>
 
-      <Pressable
-        onPress={() => router.replace("/teacher-signin")}
-        style={{ marginTop: 12 }}
-      >
-        <Text style={{ textAlign: "center", color: "#0a7", fontWeight: "600" }}>
-          Already have a teacher account? Sign in
+        {/* Name Fields Row */}
+        <View style={{ 
+          flexDirection: "row", 
+          gap: 12, 
+          marginBottom: 20 
+        }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ 
+              fontSize: 16, 
+              fontWeight: "600", 
+              color: "#212529",
+              marginBottom: 8 
+            }}>
+              First Name
+            </Text>
+            <TextInput
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="Jordan"
+              autoCapitalize="words"
+              style={{
+                borderWidth: 2,
+                borderColor: firstName ? "#2196F3" : "#e9ecef",
+                borderRadius: 12,
+                padding: 16,
+                fontSize: 16,
+                backgroundColor: "#f8f9fa",
+              }}
+            />
+          </View>
+          
+          <View style={{ flex: 1 }}>
+            <Text style={{ 
+              fontSize: 16, 
+              fontWeight: "600", 
+              color: "#212529",
+              marginBottom: 8 
+            }}>
+              Last Name
+            </Text>
+            <TextInput
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Smith"
+              autoCapitalize="words"
+              style={{
+                borderWidth: 2,
+                borderColor: lastName ? "#2196F3" : "#e9ecef",
+                borderRadius: 12,
+                padding: 16,
+                fontSize: 16,
+                backgroundColor: "#f8f9fa",
+              }}
+            />
+          </View>
+        </View>
+
+        {/* Email Field */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ 
+            fontSize: 16, 
+            fontWeight: "600", 
+            color: "#212529",
+            marginBottom: 8 
+          }}>
+            Email Address
+          </Text>
+          <TextInput
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            placeholder="teacher@school.org"
+            style={{
+              borderWidth: 2,
+              borderColor: email ? "#2196F3" : "#e9ecef",
+              borderRadius: 12,
+              padding: 16,
+              fontSize: 16,
+              backgroundColor: "#f8f9fa",
+            }}
+          />
+        </View>
+
+        {/* Password Fields */}
+        <View style={{ marginBottom: 20 }}>
+          <Text style={{ 
+            fontSize: 16, 
+            fontWeight: "600", 
+            color: "#212529",
+            marginBottom: 8 
+          }}>
+            Password
+          </Text>
+          <TextInput
+            value={pw}
+            onChangeText={setPw}
+            placeholder="At least 8 characters"
+            secureTextEntry
+            style={{
+              borderWidth: 2,
+              borderColor: pw ? "#2196F3" : "#e9ecef",
+              borderRadius: 12,
+              padding: 16,
+              fontSize: 16,
+              backgroundColor: "#f8f9fa",
+            }}
+          />
+        </View>
+
+        <View style={{ marginBottom: 24 }}>
+          <Text style={{ 
+            fontSize: 16, 
+            fontWeight: "600", 
+            color: "#212529",
+            marginBottom: 8 
+          }}>
+            Confirm Password
+          </Text>
+          <TextInput
+            value={pw2}
+            onChangeText={setPw2}
+            placeholder="Re-enter your password"
+            secureTextEntry
+            style={{
+              borderWidth: 2,
+              borderColor: pw2 && pw === pw2 ? "#4CAF50" : pw2 && pw !== pw2 ? "#f44336" : "#e9ecef",
+              borderRadius: 12,
+              padding: 16,
+              fontSize: 16,
+              backgroundColor: "#f8f9fa",
+            }}
+          />
+          {pw2 && pw !== pw2 && (
+            <Text style={{ 
+              color: "#f44336", 
+              fontSize: 12, 
+              marginTop: 4,
+              marginLeft: 4
+            }}>
+              Passwords don't match
+            </Text>
+          )}
+        </View>
+
+        {/* Create Account Button */}
+        <Pressable
+          onPress={submit}
+          disabled={!canSubmit}
+          style={{
+            padding: 18,
+            backgroundColor: canSubmit ? "#2196F3" : "#e9ecef",
+            borderRadius: 12,
+            shadowColor: canSubmit ? "#2196F3" : "transparent",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: canSubmit ? 4 : 0,
+          }}
+        >
+          {busy ? (
+            <ActivityIndicator color="white" size="small" />
+          ) : (
+            <Text
+              style={{ 
+                color: canSubmit ? "white" : "#6c757d", 
+                textAlign: "center", 
+                fontWeight: "700",
+                fontSize: 16
+              }}
+            >
+              Create Teacher Account
+            </Text>
+          )}
+        </Pressable>
+      </View>
+
+      {/* Portal Selector */}
+      <View style={{
+        backgroundColor: "white",
+        borderRadius: 16,
+        padding: 20,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+      }}>
+        <Text style={{ 
+          fontSize: 16, 
+          fontWeight: "600", 
+          color: "#212529",
+          textAlign: "center",
+          marginBottom: 16
+        }}>
+          Already have an account?
         </Text>
-      </Pressable>
-      <Pressable
-        onPress={() => router.replace("/signin")}
-        style={{ marginTop: 12 }}
-      >
-        <Text style={{ textAlign: "center", color: "#0a7", fontWeight: "600" }}>
-          Go back to student signin
-        </Text>
-      </Pressable>
-    </View>
+        
+        <View style={{ gap: 8 }}>
+          <Pressable
+            onPress={() => router.replace("/teacher-signin")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              padding: 12,
+              borderRadius: 8,
+              backgroundColor: "#f8f9fa",
+            }}
+          >
+            <View style={{
+              width: 40,
+              height: 40,
+              backgroundColor: "#2196F3",
+              borderRadius: 20,
+              justifyContent: "center",
+              alignItems: "center",
+              marginRight: 12,
+            }}>
+              <Text style={{ fontSize: 20, color: "white" }}>🎓</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "600", color: "#212529" }}>
+                Teacher Sign In
+              </Text>
+              <Text style={{ fontSize: 13, color: "#6c757d" }}>
+                Access existing account
+              </Text>
+            </View>
+            <Text style={{ color: "#6c757d", fontSize: 16 }}>→</Text>
+          </Pressable>
+          
+          <Pressable
+            onPress={() => router.replace("/signin")}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              padding: 12,
+              borderRadius: 8,
+              backgroundColor: "#f8f9fa",
+            }}
+          >
+            <View style={{
+              width: 40,
+              height: 40,
+              backgroundColor: "#4CAF50",
+              borderRadius: 20,
+              justifyContent: "center",
+              alignItems: "center",
+              marginRight: 12,
+            }}>
+              <Text style={{ fontSize: 20, color: "white" }}>📚</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: "600", color: "#212529" }}>
+                Student Portal
+              </Text>
+              <Text style={{ fontSize: 13, color: "#6c757d" }}>
+                Continue your learning journey
+              </Text>
+            </View>
+            <Text style={{ color: "#6c757d", fontSize: 16 }}>→</Text>
+          </Pressable>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
