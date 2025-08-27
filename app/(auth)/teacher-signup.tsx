@@ -73,30 +73,6 @@ export default function TeacherSignUp() {
       });
       if (signUpErr) throw signUpErr;
 
-      // 2) Ensure session. If email confirmations are ON, we won't have one yet.
-      let { data: sess } = await supabase.auth.getSession();
-
-      if (!sess?.session) {
-        const { error: siErr } = await supabase.auth.signInWithPassword({
-          email: emailTrim,
-          password: pw,
-        });
-        if (siErr) {
-          // Likely "email not confirmed" → send to confirm screen
-          if (
-            (siErr.message || "").toLowerCase().includes("email not confirmed")
-          ) {
-            router.replace({
-              pathname: "/confirm-email",
-              params: { email: emailTrim },
-            });
-            return;
-          }
-          throw siErr;
-        }
-        ({ data: sess } = await supabase.auth.getSession());
-      }
-
       // 3) We must have a user at this point
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error("Auth succeeded, but no user in session.");
@@ -136,83 +112,97 @@ export default function TeacherSignUp() {
   };
 
   return (
-    <ScrollView 
+    <ScrollView
       style={{ flex: 1, backgroundColor: "#f8f9fa" }}
-      contentContainerStyle={{ 
+      contentContainerStyle={{
         padding: 24,
         paddingTop: 60,
       }}
     >
       {/* Header */}
-      <View style={{ 
-        alignItems: "center", 
-        marginBottom: 40 
-      }}>
-        <View style={{
-          width: 80,
-          height: 80,
-          backgroundColor: "#2196F3",
-          borderRadius: 40,
-          justifyContent: "center",
+      <View
+        style={{
           alignItems: "center",
-          marginBottom: 20,
-          shadowColor: "#2196F3",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-          elevation: 8,
-        }}>
+          marginBottom: 40,
+        }}
+      >
+        <View
+          style={{
+            width: 80,
+            height: 80,
+            backgroundColor: "#2196F3",
+            borderRadius: 40,
+            justifyContent: "center",
+            alignItems: "center",
+            marginBottom: 20,
+            shadowColor: "#2196F3",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          }}
+        >
           <Text style={{ fontSize: 36, color: "white" }}>🎓</Text>
         </View>
-        
-        <Text style={{ 
-          fontSize: 28, 
-          fontWeight: "700", 
-          color: "#212529",
-          marginBottom: 8,
-          textAlign: "center"
-        }}>
+
+        <Text
+          style={{
+            fontSize: 28,
+            fontWeight: "700",
+            color: "#212529",
+            marginBottom: 8,
+            textAlign: "center",
+          }}
+        >
           Join as Teacher
         </Text>
-        
-        <Text style={{ 
-          fontSize: 16, 
-          color: "#6c757d",
-          textAlign: "center",
-          lineHeight: 22
-        }}>
+
+        <Text
+          style={{
+            fontSize: 16,
+            color: "#6c757d",
+            textAlign: "center",
+            lineHeight: 22,
+          }}
+        >
           Create your educator account
         </Text>
       </View>
 
       {/* Form Container */}
-      <View style={{
-        backgroundColor: "white",
-        borderRadius: 16,
-        padding: 24,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-        marginBottom: 24,
-      }}>
+      <View
+        style={{
+          backgroundColor: "white",
+          borderRadius: 16,
+          padding: 24,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 4,
+          marginBottom: 24,
+        }}
+      >
         {/* School Selection */}
         <View style={{ marginBottom: 20 }}>
-          <Text style={{ 
-            fontSize: 16, 
-            fontWeight: "600", 
-            color: "#212529",
-            marginBottom: 8 
-          }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "600",
+              color: "#212529",
+              marginBottom: 8,
+            }}
+          >
             School
           </Text>
-          <View style={{ 
-            borderWidth: 2, 
-            borderColor: schoolSlug ? "#2196F3" : "#e9ecef", 
-            borderRadius: 12,
-            backgroundColor: "#f8f9fa",
-          }}>
+          <View
+            style={{
+              borderWidth: 2,
+              borderColor: schoolSlug ? "#2196F3" : "#e9ecef",
+              borderRadius: 12,
+              backgroundColor: "#f8f9fa",
+            }}
+          >
             <AccessiblePicker
               selectedValue={schoolSlug}
               onValueChange={setSchoolSlug}
@@ -224,18 +214,22 @@ export default function TeacherSignUp() {
         </View>
 
         {/* Name Fields Row */}
-        <View style={{ 
-          flexDirection: "row", 
-          gap: 12, 
-          marginBottom: 20 
-        }}>
+        <View
+          style={{
+            flexDirection: "row",
+            gap: 12,
+            marginBottom: 20,
+          }}
+        >
           <View style={{ flex: 1 }}>
-            <Text style={{ 
-              fontSize: 16, 
-              fontWeight: "600", 
-              color: "#212529",
-              marginBottom: 8 
-            }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                color: "#212529",
+                marginBottom: 8,
+              }}
+            >
               First Name
             </Text>
             <TextInput
@@ -253,14 +247,16 @@ export default function TeacherSignUp() {
               }}
             />
           </View>
-          
+
           <View style={{ flex: 1 }}>
-            <Text style={{ 
-              fontSize: 16, 
-              fontWeight: "600", 
-              color: "#212529",
-              marginBottom: 8 
-            }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "600",
+                color: "#212529",
+                marginBottom: 8,
+              }}
+            >
               Last Name
             </Text>
             <TextInput
@@ -282,12 +278,14 @@ export default function TeacherSignUp() {
 
         {/* Email Field */}
         <View style={{ marginBottom: 20 }}>
-          <Text style={{ 
-            fontSize: 16, 
-            fontWeight: "600", 
-            color: "#212529",
-            marginBottom: 8 
-          }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "600",
+              color: "#212529",
+              marginBottom: 8,
+            }}
+          >
             Email Address
           </Text>
           <TextInput
@@ -309,12 +307,14 @@ export default function TeacherSignUp() {
 
         {/* Password Fields */}
         <View style={{ marginBottom: 20 }}>
-          <Text style={{ 
-            fontSize: 16, 
-            fontWeight: "600", 
-            color: "#212529",
-            marginBottom: 8 
-          }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "600",
+              color: "#212529",
+              marginBottom: 8,
+            }}
+          >
             Password
           </Text>
           <TextInput
@@ -334,12 +334,14 @@ export default function TeacherSignUp() {
         </View>
 
         <View style={{ marginBottom: 24 }}>
-          <Text style={{ 
-            fontSize: 16, 
-            fontWeight: "600", 
-            color: "#212529",
-            marginBottom: 8 
-          }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "600",
+              color: "#212529",
+              marginBottom: 8,
+            }}
+          >
             Confirm Password
           </Text>
           <TextInput
@@ -349,7 +351,12 @@ export default function TeacherSignUp() {
             secureTextEntry
             style={{
               borderWidth: 2,
-              borderColor: pw2 && pw === pw2 ? "#4CAF50" : pw2 && pw !== pw2 ? "#f44336" : "#e9ecef",
+              borderColor:
+                pw2 && pw === pw2
+                  ? "#4CAF50"
+                  : pw2 && pw !== pw2
+                  ? "#f44336"
+                  : "#e9ecef",
               borderRadius: 12,
               padding: 16,
               fontSize: 16,
@@ -357,12 +364,14 @@ export default function TeacherSignUp() {
             }}
           />
           {pw2 && pw !== pw2 && (
-            <Text style={{ 
-              color: "#f44336", 
-              fontSize: 12, 
-              marginTop: 4,
-              marginLeft: 4
-            }}>
+            <Text
+              style={{
+                color: "#f44336",
+                fontSize: 12,
+                marginTop: 4,
+                marginLeft: 4,
+              }}
+            >
               Passwords don't match
             </Text>
           )}
@@ -387,11 +396,11 @@ export default function TeacherSignUp() {
             <ActivityIndicator color="white" size="small" />
           ) : (
             <Text
-              style={{ 
-                color: canSubmit ? "white" : "#6c757d", 
-                textAlign: "center", 
+              style={{
+                color: canSubmit ? "white" : "#6c757d",
+                textAlign: "center",
                 fontWeight: "700",
-                fontSize: 16
+                fontSize: 16,
               }}
             >
               Create Teacher Account
@@ -401,26 +410,30 @@ export default function TeacherSignUp() {
       </View>
 
       {/* Portal Selector */}
-      <View style={{
-        backgroundColor: "white",
-        borderRadius: 16,
-        padding: 20,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-      }}>
-        <Text style={{ 
-          fontSize: 16, 
-          fontWeight: "600", 
-          color: "#212529",
-          textAlign: "center",
-          marginBottom: 16
-        }}>
+      <View
+        style={{
+          backgroundColor: "white",
+          borderRadius: 16,
+          padding: 20,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 4,
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: "600",
+            color: "#212529",
+            textAlign: "center",
+            marginBottom: 16,
+          }}
+        >
           Already have an account?
         </Text>
-        
+
         <View style={{ gap: 8 }}>
           <Pressable
             onPress={() => router.replace("/teacher-signin")}
@@ -432,19 +445,23 @@ export default function TeacherSignUp() {
               backgroundColor: "#f8f9fa",
             }}
           >
-            <View style={{
-              width: 40,
-              height: 40,
-              backgroundColor: "#2196F3",
-              borderRadius: 20,
-              justifyContent: "center",
-              alignItems: "center",
-              marginRight: 12,
-            }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                backgroundColor: "#2196F3",
+                borderRadius: 20,
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 12,
+              }}
+            >
               <Text style={{ fontSize: 20, color: "white" }}>🎓</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: "600", color: "#212529" }}>
+              <Text
+                style={{ fontSize: 15, fontWeight: "600", color: "#212529" }}
+              >
                 Teacher Sign In
               </Text>
               <Text style={{ fontSize: 13, color: "#6c757d" }}>
@@ -453,7 +470,7 @@ export default function TeacherSignUp() {
             </View>
             <Text style={{ color: "#6c757d", fontSize: 16 }}>→</Text>
           </Pressable>
-          
+
           <Pressable
             onPress={() => router.replace("/signin")}
             style={{
@@ -464,19 +481,23 @@ export default function TeacherSignUp() {
               backgroundColor: "#f8f9fa",
             }}
           >
-            <View style={{
-              width: 40,
-              height: 40,
-              backgroundColor: "#4CAF50",
-              borderRadius: 20,
-              justifyContent: "center",
-              alignItems: "center",
-              marginRight: 12,
-            }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                backgroundColor: "#4CAF50",
+                borderRadius: 20,
+                justifyContent: "center",
+                alignItems: "center",
+                marginRight: 12,
+              }}
+            >
               <Text style={{ fontSize: 20, color: "white" }}>📚</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: "600", color: "#212529" }}>
+              <Text
+                style={{ fontSize: 15, fontWeight: "600", color: "#212529" }}
+              >
                 Student Portal
               </Text>
               <Text style={{ fontSize: 13, color: "#6c757d" }}>

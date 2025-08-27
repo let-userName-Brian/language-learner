@@ -2,39 +2,41 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 
 export default function TeacherLayout() {
-  const renderHomeIcon = ({ color, size }: { color: string; size: number }) => (
-    <Ionicons name="home" size={size} color={color} />
-  );
-  
-  const renderRosterIcon = ({ color, size }: { color: string; size: number }) => (
-    <Ionicons name="people" size={size} color={color} />
-  );
-  
-  const renderSettingsIcon = ({ color, size }: { color: string; size: number }) => (
-    <Ionicons name="settings" size={size} color={color} />
-  );
-
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs screenOptions={{ 
+      headerShown: false, 
+      tabBarShowLabel: false,
+      tabBarStyle: {
+        height: 60, // Set consistent height
+        paddingBottom: 8, // Add bottom padding for better centering
+        paddingTop: 8, // Add top padding for better centering
+      },
+      tabBarIconStyle: {
+        marginTop: 0, // Reset any default margin
+      }
+    }}>
       <Tabs.Screen 
         name="home" 
         options={{ 
-          title: "Home",
-          tabBarIcon: renderHomeIcon,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="apps-outline" size={24} color={color} />
+          ),
         }} 
       />
       <Tabs.Screen 
         name="roster" 
         options={{ 
-          title: "Roster",
-          tabBarIcon: renderRosterIcon,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people-outline" size={24} color={color} />
+          ),
         }} 
       />
       <Tabs.Screen 
         name="settings" 
         options={{ 
-          title: "Settings",
-          tabBarIcon: renderSettingsIcon,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-circle-outline" size={24} color={color} />
+          ),
         }} 
       />
     </Tabs>

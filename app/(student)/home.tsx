@@ -49,12 +49,12 @@ export default function HomeScreen() {
       // Get student name
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("display_name")
+        .select("first_name")
         .eq("user_id", user.user.id)
         .single();
 
-      if (profile?.display_name) {
-        setStudentName(profile.display_name);
+      if (profile?.first_name) {
+        setStudentName(profile.first_name);
       }
 
       // Get all lessons with units
@@ -112,7 +112,29 @@ export default function HomeScreen() {
         // Find current lesson (first not completed)
         const currentLessonData = lessonsData.find((lesson) => {
           const progress = progressMap.get(lesson.id);
-          return progress?.status !== "completed";
+          
+          // First check if lesson has no progress at all (not started)
+          if (!progress) {
+            return true;
+          }
+          
+          // Check actual section completion rather than just progress.status
+          const lessonItems = itemsData.filter((item) => item.lesson_id === lesson.id);
+          const uniqueSectionTypes = [...new Set(lessonItems.map((item) => item.kind))];
+          const completedSections = progress.last_position?.completed_sections || [];
+          
+          // This lesson is current if not all sections are completed
+          const allSectionsActuallyCompleted = uniqueSectionTypes.length > 0 && 
+            uniqueSectionTypes.every(type => completedSections.includes(type));
+          
+          console.log(`Checking lesson ${lesson.title}:`, {
+            uniqueSectionTypes,
+            completedSections,
+            allSectionsActuallyCompleted,
+            progressStatus: progress.status
+          });
+          
+          return !allSectionsActuallyCompleted;
         });
 
         if (currentLessonData) {
@@ -297,32 +319,25 @@ export default function HomeScreen() {
       contentContainerStyle={{ padding: 16, gap: 20 }}
     >
       {/* Greeting Header */}
-      <View style={{ marginBottom: 10 }}>
+      <View style={{ marginTop: 10, marginBottom: 10 }}>
         <Text
           style={{
             fontSize: 28,
             fontWeight: "700",
             color: "#212529",
-            marginBottom: 4,
+            marginBottom: 8,
+            lineHeight: 34, // Add consistent line height
           }}
         >
-          {getGreeting()}
-          {studentName ? `,` : "!"}
-        </Text>
-        <Text
-          style={{
-            fontSize: 28,
-            fontWeight: "700",
-            color: "#212529",
-            marginBottom: 4,
-          }}
-        >
-          {studentName ? `${studentName}!` : ""}
+          {studentName
+            ? `${getGreeting()}, ${studentName}!`
+            : `${getGreeting()}!`}
         </Text>
         <Text
           style={{
             fontSize: 16,
             color: "#6c757d",
+            lineHeight: 22, // Consistent line height
           }}
         >
           Ready to continue learning?

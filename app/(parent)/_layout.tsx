@@ -3,31 +3,39 @@ import { Tabs } from "expo-router";
 
 export default function ParentTabsLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }}>
+    <Tabs screenOptions={{ 
+      headerShown: false, 
+      tabBarShowLabel: false,
+      tabBarStyle: {
+        height: 60, // Set consistent height
+        paddingBottom: 8, // Add bottom padding for better centering
+        paddingTop: 8, // Add top padding for better centering
+      },
+      tabBarIconStyle: {
+        marginTop: 0, // Reset any default margin
+      }
+    }}>
       <Tabs.Screen 
         name="home" 
         options={{ 
-          title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <Ionicons name="analytics-outline" size={24} color={color} />
           ),
         }} 
       />
       <Tabs.Screen 
         name="lessons" 
         options={{ 
-          title: "Lessons",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="book" size={size} color={color} />
+            <Ionicons name="library-outline" size={24} color={color} />
           ),
         }} 
       />
       <Tabs.Screen 
         name="settings" 
         options={{ 
-          title: "Settings",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
+            <Ionicons name="person-circle-outline" size={24} color={color} />
           ),
         }} 
       />

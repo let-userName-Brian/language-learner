@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -42,24 +43,42 @@ type UnitGroup = {
   };
 };
 
+type LessonUnit = {
+  lesson_id: string;
+  lesson_title: string;
+  lesson_order: number;
+  unit_title: string;
+  sections: {
+    type: string;
+    count: number;
+    completed: boolean;
+  }[];
+  progress: {
+    completed: number;
+    total: number;
+  };
+  status: "not_started" | "in_progress" | "completed";
+};
+
 export default function Lessons() {
-  const [units, setUnits] = useState<UnitGroup[]>([]);
+  const [lessonUnits, setLessonUnits] = useState<LessonUnit[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
+  const [expandedLessons, setExpandedLessons] = useState<Set<string>>(new Set());
   const [schoolName, setSchoolName] = useState<string>("");
+  const [courseTitle, setCourseTitle] = useState<string>("");
   const [progressData, setProgressData] = useState<any[]>([]);
-  
-  // Animation values for each unit
+
+  // Animation values for each lesson
   const [rotationValues] = useState<{ [key: string]: Animated.Value }>({});
 
   useFocusEffect(
     useCallback(() => {
-      loadLessonsGroupedByUnit();
+      loadLessonsAsUnits();
     }, [])
   );
 
-  const loadLessonsGroupedByUnit = async () => {
+  const loadLessonsAsUnits = async () => {
     setLoading(true);
     setErr(null);
     try {
@@ -69,12 +88,7 @@ export default function Lessons() {
       if (user.user) {
         const { data: userProfile } = await supabase
           .from("user_profiles")
-          .select(
-            `
-            school_id,
-            schools!inner(name)
-          `
-          )
+          .select(`school_id, schools!inner(name)`)
           .eq("user_id", user.user.id)
           .single();
         if (
@@ -86,19 +100,31 @@ export default function Lessons() {
         }
       }
 
-      // Try to get units data first
-      const { data: unitsData } = await supabase
-        .from("units")
-        .select("*")
-        .order("order");
-
-      // Get all lessons
+      // Get lessons with unit and course info
       const { data: lessonsData, error: lessonsError } = await supabase
         .from("lessons")
-        .select("*")
+        .select(`
+          id,
+          title,
+          order,
+          unit_id,
+          units!inner(title, course_id, courses!inner(title))
+        `)
         .order("order");
 
       if (lessonsError) throw lessonsError;
+
+      // Extract course title from the first lesson's unit
+      if (lessonsData && lessonsData.length > 0) {
+        const firstLesson = lessonsData[0];
+        const courseData = (firstLesson.units as any)?.courses;
+        if (courseData?.title) {
+          setCourseTitle(courseData.title);
+        } else {
+          // Fallback
+          setCourseTitle("Your Lessons");
+        }
+      }
 
       // Get all items to count by type for each lesson
       const { data: itemsData, error: itemsError } = await supabase
@@ -118,124 +144,61 @@ export default function Lessons() {
       }
       setProgressData(progressData);
 
-      // Create unit lookup map
-      const unitLookup: { [key: string]: string } = {};
-      if (unitsData) {
-        unitsData.forEach((unit: UnitData) => {
-          // Use title, name, or fallback to ID
-          unitLookup[unit.id] = unit.title || unit.name || `Unit ${unit.id}`;
+      // Transform lessons into lesson units
+      const lessonUnits: LessonUnit[] = (lessonsData || []).map((lesson) => {
+        const lessonItems = itemsData?.filter((item) => item.lesson_id === lesson.id) || [];
+        const progress = progressData.find((p) => p.lesson_id === lesson.id);
+
+        // Create sections for each item type
+        const sections = [
+          { type: "vocab", count: lessonItems.filter(i => i.kind === "vocab").length },
+          { type: "sentence", count: lessonItems.filter(i => i.kind === "sentence").length },
+          { type: "picture-match", count: lessonItems.filter(i => i.kind === "picture-match").length },
+          { type: "tile-build", count: lessonItems.filter(i => i.kind === "tile-build").length },
+        ]
+        .filter(section => section.count > 0)
+        .map(section => ({
+          ...section,
+          completed: progress?.last_position?.completed_sections?.includes(section.type) || false
+        }));
+
+        // Calculate overall lesson status
+        let status: "not_started" | "in_progress" | "completed" = "not_started";
+        const completedSections = sections.filter(s => s.completed).length;
+
+        // Add debugging
+        console.log(`Lesson ${lesson.title}:`, {
+          totalSections: sections.length,
+          completedSections,
+          availableSectionTypes: sections.map(s => s.type),
+          progressCompletedSections: progress?.last_position?.completed_sections || [],
+          progressStatus: progress?.status
         });
-      }
 
-      // Process lessons with item counts and ACTUAL section progress
-      const lessonsWithDetails: LessonWithDetails[] = (lessonsData || []).map(
-        (lesson) => {
-          const lessonItems =
-            itemsData?.filter((item) => item.lesson_id === lesson.id) || [];
-          const progress = progressData.find((p) => p.lesson_id === lesson.id);
-
-          const itemCounts = {
-            sentence: lessonItems.filter((i) => i.kind === "sentence").length,
-            vocab: lessonItems.filter((i) => i.kind === "vocab").length,
-            "picture-match": lessonItems.filter(
-              (i) => i.kind === "picture-match"
-            ).length,
-            "tile-build": lessonItems.filter((i) => i.kind === "tile-build")
-              .length,
-            total: lessonItems.length,
-          };
-
-          // Calculate ACTUAL status based on completed sections
-          let actualStatus: "not_started" | "in_progress" | "completed" = "not_started";
-          
-          if (progress?.last_position?.completed_sections) {
-            const completedSections = progress.last_position.completed_sections;
-            const availableTypes = ["vocab", "sentence", "picture-match", "tile-build"].filter(
-              type => itemCounts[type as keyof typeof itemCounts] > 0
-            );
-            
-            if (completedSections.length === 0) {
-              actualStatus = "not_started";
-            } else if (completedSections.length === availableTypes.length) {
-              actualStatus = "completed";
-            } else {
-              actualStatus = "in_progress";
-            }
-          } else if (progress?.status) {
-            // Fallback to old status if no section data
-            actualStatus = progress.status;
-          }
-
-          return {
-            ...lesson,
-            status: actualStatus,
-            item_counts: itemCounts,
-          };
-        }
-      );
-
-      // Group by unit_id
-      const unitGroups: { [key: string]: UnitGroup } = {};
-      lessonsWithDetails.forEach((lesson) => {
-        if (!unitGroups[lesson.unit_id]) {
-          unitGroups[lesson.unit_id] = {
-            unit_id: lesson.unit_id,
-            // Use actual unit title from database or fallback
-            unit_title:
-              unitLookup[lesson.unit_id] ||
-              `Unit ${lesson.unit_id.slice(0, 8)}...`,
-            lessons: [],
-            progress: { completed: 0, total: 0 },
-          };
-        }
-        unitGroups[lesson.unit_id].lessons.push(lesson);
-      });
-
-      // Calculate progress for each unit based on SECTIONS completed
-      Object.values(unitGroups).forEach((unit) => {
-        let totalSections = 0;
-        let completedSections = 0;
-        
-        unit.lessons.forEach((lesson) => {
-          // Count available section types for this lesson
-          const availableTypes = ["vocab", "sentence", "picture-match", "tile-build"].filter(
-            type => lesson.item_counts[type as keyof typeof lesson.item_counts] > 0
-          );
-          totalSections += availableTypes.length;
-          
-          // Count completed sections for this lesson
-          const progress = progressData.find((p) => p.lesson_id === lesson.id);
-          if (progress?.last_position?.completed_sections) {
-            completedSections += progress.last_position.completed_sections.length;
-          }
-        });
-        
-        unit.progress.total = totalSections;
-        unit.progress.completed = completedSections;
-        unit.lessons.sort((a, b) => a.order - b.order);
-      });
-
-      // Sort units by their first lesson's order (or unit order if available)
-      const sortedUnits = Object.values(unitGroups).sort((a, b) => {
-        // If we have units data with order, use that
-        const aUnitOrder = unitsData?.find(
-          (u: UnitData) => u.id === a.unit_id
-        )?.order;
-        const bUnitOrder = unitsData?.find(
-          (u: UnitData) => u.id === b.unit_id
-        )?.order;
-
-        if (aUnitOrder !== undefined && bUnitOrder !== undefined) {
-          return aUnitOrder - bUnitOrder;
+        if (completedSections === 0) {
+          status = "not_started";
+        } else if (completedSections === sections.length && sections.length > 0) {
+          status = "completed";
+        } else {
+          status = "in_progress";
         }
 
-        // Fallback to first lesson order
-        const aFirstOrder = Math.min(...a.lessons.map((l) => l.order));
-        const bFirstOrder = Math.min(...b.lessons.map((l) => l.order));
-        return aFirstOrder - bFirstOrder;
+        // Override with actual section-based status regardless of what's in progress.status
+        return {
+          lesson_id: lesson.id,
+          lesson_title: lesson.title,
+          lesson_order: lesson.order,
+          unit_title: (lesson.units as any)?.title || `Unit ${lesson.unit_id.slice(0, 8)}`,
+          sections,
+          progress: {
+            completed: completedSections,
+            total: sections.length
+          },
+          status
+        };
       });
 
-      setUnits(sortedUnits);
+      setLessonUnits(lessonUnits);
     } catch (e: any) {
       setErr(e.message ?? "Failed to load lessons");
     } finally {
@@ -243,28 +206,46 @@ export default function Lessons() {
     }
   };
 
-  const toggleUnit = (unitId: string) => {
-    const newExpanded = new Set(expandedUnits);
-    const isExpanding = !newExpanded.has(unitId);
-    
-    // Initialize rotation value if it doesn't exist
-    if (!rotationValues[unitId]) {
-      rotationValues[unitId] = new Animated.Value(0);
+  const toggleLesson = (lessonId: string) => {
+    const newExpanded = new Set(expandedLessons);
+    const isExpanding = !newExpanded.has(lessonId);
+
+    if (!rotationValues[lessonId]) {
+      rotationValues[lessonId] = new Animated.Value(0);
     }
-    
-    // Animate rotation
-    Animated.timing(rotationValues[unitId], {
+
+    Animated.timing(rotationValues[lessonId], {
       toValue: isExpanding ? 1 : 0,
       duration: 200,
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
-    
-    if (newExpanded.has(unitId)) {
-      newExpanded.delete(unitId);
+
+    if (newExpanded.has(lessonId)) {
+      newExpanded.delete(lessonId);
     } else {
-      newExpanded.add(unitId);
+      newExpanded.add(lessonId);
     }
-    setExpandedUnits(newExpanded);
+    setExpandedLessons(newExpanded);
+  };
+
+  const getSectionIcon = (type: string) => {
+    switch (type) {
+      case "vocab": return "📚";
+      case "sentence": return "📝";
+      case "picture-match": return "🖼️";
+      case "tile-build": return "🧩";
+      default: return "📄";
+    }
+  };
+
+  const getSectionName = (type: string) => {
+    switch (type) {
+      case "vocab": return "Vocabulary";
+      case "sentence": return "Sentence Match";
+      case "picture-match": return "Picture Match";
+      case "tile-build": return "Tile Builder";
+      default: return type;
+    }
   };
 
   const getStatusColor = (status?: string) => {
@@ -332,20 +313,89 @@ export default function Lessons() {
     );
   };
 
-  const getLessonSectionProgress = (lesson: LessonWithDetails, progressData: any[]) => {
+  const getLessonSectionProgress = (
+    lesson: LessonWithDetails,
+    progressData: any[]
+  ) => {
     const progress = progressData.find((p) => p.lesson_id === lesson.id);
     const completedSections = progress?.last_position?.completed_sections || [];
-    
-    const availableTypes = ["vocab", "sentence", "picture-match", "tile-build"].filter(
-      type => lesson.item_counts[type as keyof typeof lesson.item_counts] > 0
+
+    const availableTypes = [
+      "vocab",
+      "sentence",
+      "picture-match",
+      "tile-build",
+    ].filter(
+      (type) => lesson.item_counts[type as keyof typeof lesson.item_counts] > 0
     );
-    
+
     return {
       completed: completedSections.length,
       total: availableTypes.length,
       completedSections,
-      availableTypes
+      availableTypes,
     };
+  };
+
+  const getUnitColor = (unitIndex: number) => {
+    const colors = [
+      "#4CAF50", // Green - Unit 1
+      "#2196F3", // Blue - Unit 2  
+      "#FF9800", // Orange - Unit 3
+      "#9C27B0", // Purple - Unit 4
+      "#F44336", // Red - Unit 5
+      "#00BCD4", // Cyan - Unit 6
+      "#FF5722", // Deep Orange - Unit 7
+      "#3F51B5", // Indigo - Unit 8
+      "#795548", // Brown - Unit 9
+      "#607D8B", // Blue Grey - Unit 10
+    ];
+    return colors[unitIndex % 10]; // Cycle every 10 units
+  };
+
+  const getUnitIcon = (unitIndex: number) => {
+    const icons = [
+      "🌱", // Unit 1 - Growth/Beginning
+      "⭐", // Unit 2 - Star/Achievement  
+      "🚀", // Unit 3 - Rocket/Progress
+      "🎯", // Unit 4 - Target/Goals
+      "💎", // Unit 5 - Diamond/Mastery
+      "🔥", // Unit 6 - Fire/Energy
+      "⚡", // Unit 7 - Lightning/Power
+      "🌟", // Unit 8 - Shining Star
+      "🏆", // Unit 9 - Trophy/Victory
+      "👑", // Unit 10 - Crown/Excellence
+    ];
+    return icons[unitIndex % 10]; // Cycle every 10 units
+  };
+
+  // Add this function to fix incorrect completion status:
+  const fixIncorrectCompletionStatus = async () => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      for (const lessonUnit of lessonUnits) {
+        const actuallyCompleted = lessonUnit.sections.every(s => s.completed);
+        const progressStatus = progressData.find(p => p.lesson_id === lessonUnit.lesson_id)?.status;
+        
+        if (progressStatus === "completed" && !actuallyCompleted) {
+          console.log(`Fixing incorrect completion status for lesson: ${lessonUnit.lesson_title}`);
+          
+          // Update to correct status
+          await supabase
+            .from("progress")
+            .update({ 
+              status: lessonUnit.sections.length === 0 ? "not_started" : "in_progress",
+              updated_at: new Date().toISOString()
+            })
+            .eq("user_id", user.user.id)
+            .eq("lesson_id", lessonUnit.lesson_id);
+        }
+      }
+    } catch (error) {
+      console.error("Error fixing completion status:", error);
+    }
   };
 
   if (loading) {
@@ -366,51 +416,35 @@ export default function Lessons() {
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-      {/* Enhanced Header with School Name */}
+      {/* Enhanced Header with School Name and Course Title */}
       <View style={{ marginBottom: 20 }}>
         {schoolName && (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginTop: 4,
-              gap: 8,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                color: "#6c757d",
-                fontWeight: "500",
-              }}
-            >
-              {schoolName}
-            </Text>
-            <Text style={{ fontSize: 16, color: "#6c757d", fontWeight: "500" }}>
-              - All Lessons
-            </Text>
-          </View>
+          <Text style={{ fontSize: 16, color: "#6c757d", fontWeight: "500" }}>
+            {schoolName}
+          </Text>
         )}
+        <Text style={{ fontSize: 24, fontWeight: "700", color: "#212529", marginTop: 4 }}>
+          {courseTitle || "Your Lessons"}
+        </Text>
       </View>
 
-      {units.map((unit) => {
-        const isExpanded = expandedUnits.has(unit.unit_id);
+      {lessonUnits.map((lessonUnit, index) => {
+        const isExpanded = expandedLessons.has(lessonUnit.lesson_id);
         
-        // Initialize rotation value if it doesn't exist
-        if (!rotationValues[unit.unit_id]) {
-          rotationValues[unit.unit_id] = new Animated.Value(isExpanded ? 1 : 0);
+        if (!rotationValues[lessonUnit.lesson_id]) {
+          rotationValues[lessonUnit.lesson_id] = new Animated.Value(isExpanded ? 1 : 0);
         }
-        
-        const rotateInterpolate = rotationValues[unit.unit_id].interpolate({
+
+        const rotateInterpolate = rotationValues[lessonUnit.lesson_id].interpolate({
           inputRange: [0, 1],
-          outputRange: ['0deg', '180deg'],
+          outputRange: ["0deg", "180deg"],
         });
 
         return (
-          <View key={unit.unit_id} style={{ marginBottom: 16 }}>
-            {/* Unit Header */}
+          <View key={lessonUnit.lesson_id} style={{ marginBottom: 16 }}>
+            {/* Lesson Header */}
             <Pressable
-              onPress={() => toggleUnit(unit.unit_id)}
+              onPress={() => toggleLesson(lessonUnit.lesson_id)}
               style={{
                 backgroundColor: "#fff",
                 padding: 16,
@@ -419,50 +453,76 @@ export default function Lessons() {
                 borderBottomRightRadius: isExpanded ? 4 : 12,
                 borderWidth: 1,
                 borderColor: "#e9ecef",
-                shadowColor: "#000",
+                shadowColor: getUnitColor(index),
                 shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
+                shadowOpacity: 0.15,
                 shadowRadius: 4,
                 elevation: 3,
               }}
             >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", flex: 1, gap: 12 }}>
+                  <View
                     style={{
-                      fontSize: 18,
-                      fontWeight: "bold",
-                      color: "#212529",
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: getUnitColor(index),
+                      justifyContent: "center",
+                      alignItems: "center",
+                      shadowColor: getUnitColor(index),
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      elevation: 2,
                     }}
                   >
-                    {unit.unit_title}
-                  </Text>
-                  <Text
-                    style={{ fontSize: 14, color: "#6c757d", marginTop: 2 }}
-                  >
-                    {unit.progress.completed} of {unit.progress.total} lessons
-                    completed
-                  </Text>
+                    <Text style={{ fontSize: 24 }}>{getUnitIcon(index)}</Text>
+                  </View>
+                  
+                  <View style={{ flex: 1 }}>
+                    {/* Unit Context - Small Gray */}
+                    <Text style={{ fontSize: 12, color: "#6c757d", fontWeight: "500", marginBottom: 2 }}>
+                      {lessonUnit.unit_title}
+                    </Text>
+                    
+                    {/* Lesson Title - Bold and Prominent */}
+                    <Text style={{ fontSize: 18, fontWeight: "700", color: "#212529", marginBottom: 4 }}>
+                      {lessonUnit.lesson_title}
+                    </Text>
+                    
+                    {/* Progress - Small Gray */}
+                    <Text style={{ fontSize: 14, color: "#6c757d" }}>
+                      {lessonUnit.progress.completed} of {lessonUnit.progress.total} sections completed
+                    </Text>
+                  </View>
                 </View>
 
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
                   {/* Completion Badge */}
-                  {getUnitCompletionBadge(
-                    unit.progress.completed,
-                    unit.progress.total
-                  )}
+                  <View
+                    style={{
+                      backgroundColor: lessonUnit.progress.completed === lessonUnit.progress.total ? getUnitColor(index) : "#e9ecef",
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 12,
+                      minWidth: 50,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "bold",
+                        color: lessonUnit.progress.completed === lessonUnit.progress.total ? "white" : "#6c757d",
+                      }}
+                    >
+                      {lessonUnit.progress.completed === lessonUnit.progress.total 
+                        ? "✓ Done" 
+                        : `${Math.round((lessonUnit.progress.completed / lessonUnit.progress.total) * 100)}%`
+                      }
+                    </Text>
+                  </View>
 
                   {/* Animated Caret */}
                   <View
@@ -470,28 +530,22 @@ export default function Lessons() {
                       width: 32,
                       height: 32,
                       borderRadius: 16,
-                      backgroundColor: "#f8f9fa",
+                      backgroundColor: `${getUnitColor(index)}15`,
                       justifyContent: "center",
                       alignItems: "center",
                       borderWidth: 1,
-                      borderColor: "#e9ecef",
+                      borderColor: `${getUnitColor(index)}40`,
                     }}
                   >
-                    <Animated.Text
-                      style={{
-                        fontSize: 14,
-                        color: "#6c757d",
-                        transform: [{ rotate: rotateInterpolate }],
-                      }}
-                    >
-                      ▼
-                    </Animated.Text>
+                    <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
+                      <Ionicons name="chevron-down" size={16} color={getUnitColor(index)} />
+                    </Animated.View>
                   </View>
                 </View>
               </View>
             </Pressable>
 
-            {/* Connected Dropdown Lessons */}
+            {/* Connected Dropdown Sections */}
             {isExpanded && (
               <View
                 style={{
@@ -509,10 +563,10 @@ export default function Lessons() {
                   elevation: 2,
                 }}
               >
-                {unit.lessons.map((lesson, index) => (
+                {lessonUnit.sections.map((section, sectionIndex) => (
                   <Link
-                    key={lesson.id}
-                    href={`/lesson/${lesson.id}?from=lessons`}
+                    key={section.type}
+                    href={`/lesson/section?id=${lessonUnit.lesson_id}&type=${section.type}&from=lessons`}
                     asChild
                   >
                     <Pressable
@@ -521,13 +575,8 @@ export default function Lessons() {
                         padding: 16,
                         borderRadius: 8,
                         borderWidth: 1,
-                        borderColor:
-                          lesson.status === "completed"
-                            ? "#4CAF50"
-                            : lesson.status === "in_progress"
-                            ? "#FF9800"
-                            : "#e9ecef",
-                        marginBottom: index === unit.lessons.length - 1 ? 0 : 8,
+                        borderColor: section.completed ? "#4CAF50" : "#e9ecef",
+                        marginBottom: sectionIndex === lessonUnit.sections.length - 1 ? 0 : 8,
                         shadowColor: "#000",
                         shadowOffset: { width: 0, height: 1 },
                         shadowOpacity: 0.05,
@@ -535,235 +584,42 @@ export default function Lessons() {
                         elevation: 1,
                       }}
                     >
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 12,
-                        }}
-                      >
-                        {/* Enhanced Status Icon */}
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                        {/* Section Icon */}
                         <View
                           style={{
                             width: 32,
                             height: 32,
                             borderRadius: 16,
-                            backgroundColor: getStatusColor(lesson.status),
+                            backgroundColor: section.completed ? "#4CAF50" : "#9E9E9E",
                             justifyContent: "center",
                             alignItems: "center",
-                            shadowColor: getStatusColor(lesson.status),
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.3,
-                            shadowRadius: 4,
-                            elevation: 2,
                           }}
                         >
-                          <Text
-                            style={{
-                              color: "white",
-                              fontSize: 16,
-                              fontWeight: "bold",
-                            }}
-                          >
-                            {getStatusIcon(lesson.status)}
-                          </Text>
+                          <Text style={{ fontSize: 16 }}>{getSectionIcon(section.type)}</Text>
                         </View>
 
-                        {/* Lesson Info */}
+                        {/* Section Info */}
                         <View style={{ flex: 1 }}>
-                          <Text
-                            style={{
-                              fontSize: 16,
-                              fontWeight: "600",
-                              marginBottom: 4,
-                              color: "#212529",
-                            }}
-                          >
-                            {lesson.title}
+                          <Text style={{ fontSize: 16, fontWeight: "600", color: "#212529" }}>
+                            {getSectionName(section.type)}
                           </Text>
-
-                          {/* Add Section Progress Bar */}
-                          {(() => {
-                            const sectionProgress = getLessonSectionProgress(lesson, progressData);
-                            const progressPercent = sectionProgress.total > 0 ? (sectionProgress.completed / sectionProgress.total) * 100 : 0;
-                            
-                            return (
-                              <View style={{ marginBottom: 8 }}>
-                                <View style={{
-                                  flexDirection: "row",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  marginBottom: 4
-                                }}>
-                                  <Text style={{ fontSize: 12, color: "#6c757d" }}>
-                                    Sections: {sectionProgress.completed}/{sectionProgress.total}
-                                  </Text>
-                                  <Text style={{ fontSize: 12, color: "#6c757d", fontWeight: "500" }}>
-                                    {Math.round(progressPercent)}%
-                                  </Text>
-                                </View>
-                                
-                                {/* Progress Bar */}
-                                <View style={{
-                                  height: 4,
-                                  backgroundColor: "#e9ecef",
-                                  borderRadius: 2,
-                                  overflow: "hidden"
-                                }}>
-                                  <View style={{
-                                    height: "100%",
-                                    width: `${progressPercent}%`,
-                                    backgroundColor: progressPercent === 100 ? "#4CAF50" : "#FF9800",
-                                    borderRadius: 2
-                                  }} />
-                                </View>
-                              </View>
-                            );
-                          })()}
-
-                          {/* Enhanced Item Types */}
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              gap: 12,
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            {lesson.item_counts.sentence > 0 && (
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  gap: 4,
-                                  backgroundColor: "#e3f2fd",
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 2,
-                                  borderRadius: 12,
-                                }}
-                              >
-                                <Text style={{ fontSize: 12 }}>
-                                  {getItemTypeIcon("sentence")}
-                                </Text>
-                                <Text
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#1976D2",
-                                    fontWeight: "500",
-                                  }}
-                                >
-                                  {lesson.item_counts.sentence}
-                                </Text>
-                              </View>
-                            )}
-                            {lesson.item_counts.vocab > 0 && (
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  gap: 4,
-                                  backgroundColor: "#f3e5f5",
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 2,
-                                  borderRadius: 12,
-                                }}
-                              >
-                                <Text style={{ fontSize: 12 }}>
-                                  {getItemTypeIcon("vocab")}
-                                </Text>
-                                <Text
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#7B1FA2",
-                                    fontWeight: "500",
-                                  }}
-                                >
-                                  {lesson.item_counts.vocab}
-                                </Text>
-                              </View>
-                            )}
-                            {lesson.item_counts["picture-match"] > 0 && (
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  gap: 4,
-                                  backgroundColor: "#e8f5e8",
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 2,
-                                  borderRadius: 12,
-                                }}
-                              >
-                                <Text style={{ fontSize: 12 }}>
-                                  {getItemTypeIcon("picture-match")}
-                                </Text>
-                                <Text
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#388E3C",
-                                    fontWeight: "500",
-                                  }}
-                                >
-                                  {lesson.item_counts["picture-match"]}
-                                </Text>
-                              </View>
-                            )}
-                            {lesson.item_counts["tile-build"] > 0 && (
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  gap: 4,
-                                  backgroundColor: "#fff3e0",
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 2,
-                                  borderRadius: 12,
-                                }}
-                              >
-                                <Text style={{ fontSize: 12 }}>
-                                  {getItemTypeIcon("tile-build")}
-                                </Text>
-                                <Text
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#F57C00",
-                                    fontWeight: "500",
-                                  }}
-                                >
-                                  {lesson.item_counts["tile-build"]}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
+                          <Text style={{ fontSize: 14, color: "#6c757d" }}>
+                            {section.count} items
+                          </Text>
                         </View>
 
-                        {/* Status Badge */}
-                        <View
-                          style={{
-                            alignItems: "center",
-                            gap: 4,
-                          }}
-                        >
-                          {lesson.status === "completed" && (
-                            <View
-                              style={{
-                                backgroundColor: "#e8f5e8",
-                                paddingHorizontal: 8,
-                                paddingVertical: 4,
-                                borderRadius: 12,
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: "600",
-                                  color: "#4CAF50",
-                                }}
-                              >
+                        {/* Status */}
+                        <View style={{ alignItems: "center" }}>
+                          {section.completed ? (
+                            <View style={{ backgroundColor: "#e8f5e8", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                              <Text style={{ fontSize: 10, fontWeight: "600", color: "#4CAF50" }}>
                                 DONE
                               </Text>
                             </View>
+                          ) : (
+                            <Text style={{ color: "#999", fontSize: 16 }}>→</Text>
                           )}
-                          <Text style={{ color: "#999", fontSize: 16 }}>→</Text>
                         </View>
                       </View>
                     </Pressable>
@@ -771,9 +627,10 @@ export default function Lessons() {
                 ))}
               </View>
             )}
-    </View>
+          </View>
         );
       })}
     </ScrollView>
   );
 }
+

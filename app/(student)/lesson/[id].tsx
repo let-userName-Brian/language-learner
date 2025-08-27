@@ -159,10 +159,20 @@ export default function LessonScreen() {
 
       if (allSectionsComplete) {
         showSuccessBanner("🎉 Lesson completed!", () => {
-          setTimeout(() => handleBack(), 1500);
+          if (from === 'lesson') {
+            router.push(`/lesson/${lessonId}?from=lessons`);
+          } else {
+            router.push('/(student)/lessons');
+          }
         });
       } else {
-        showSuccessBanner(`✓ ${getSectionTitle(sectionType)} completed!`);
+        showSuccessBanner(`✓ ${getSectionTitle(sectionType)} completed!`, () => {
+          if (from === 'lesson') {
+            router.push(`/lesson/${lessonId}?from=lessons`);
+          } else {
+            router.push('/(student)/lessons');
+          }
+        });
       }
     } catch (error) {
       showErrorBanner("Failed to save progress");
@@ -177,8 +187,11 @@ export default function LessonScreen() {
   const handleBack = () => {
     if (from === 'lessons') {
       router.push('/(student)/lessons');
-    } else {
+    } else if (from === 'home') {
       router.push('/(student)/home');
+    } else {
+      // Default fallback
+      router.push('/(student)/lessons');
     }
   };
 
