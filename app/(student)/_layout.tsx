@@ -33,7 +33,19 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="lesson/[id]"
-        options={{ href: null, title: "Lesson" }}
+        options={{ 
+          href: null, 
+          title: "Lesson",
+          tabBarStyle: { display: 'none' }
+        }}
+      />
+      <Tabs.Screen
+        name="lesson/section"
+        options={{ 
+          href: null, 
+          title: "Section",
+          tabBarStyle: { display: 'none' }
+        }}
       />
     </Tabs>
   );
