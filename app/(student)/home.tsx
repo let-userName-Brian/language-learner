@@ -103,8 +103,8 @@ export default function HomeScreen() {
           completedLessons: completed,
           inProgressLessons: inProgress,
           notStartedLessons: notStarted,
-          currentStreak: 0, // TODO: Calculate streak
-          totalItemsCompleted: completed * 5, // Rough estimate
+          currentStreak: 0,
+          totalItemsCompleted: completed * 5,
         };
 
         setStats(stats);
@@ -112,28 +112,27 @@ export default function HomeScreen() {
         // Find current lesson (first not completed)
         const currentLessonData = lessonsData.find((lesson) => {
           const progress = progressMap.get(lesson.id);
-          
+
           // First check if lesson has no progress at all (not started)
-          if (!progress) {
-            return true;
-          }
-          
+          if (!progress) return true;
+
           // Check actual section completion rather than just progress.status
-          const lessonItems = itemsData.filter((item) => item.lesson_id === lesson.id);
-          const uniqueSectionTypes = [...new Set(lessonItems.map((item) => item.kind))];
-          const completedSections = progress.last_position?.completed_sections || [];
-          
+          const lessonItems = itemsData.filter(
+            (item) => item.lesson_id === lesson.id
+          );
+          const uniqueSectionTypes = [
+            ...new Set(lessonItems.map((item) => item.kind)),
+          ];
+          const completedSections =
+            progress.last_position?.completed_sections || [];
+
           // This lesson is current if not all sections are completed
-          const allSectionsActuallyCompleted = uniqueSectionTypes.length > 0 && 
-            uniqueSectionTypes.every(type => completedSections.includes(type));
-          
-          console.log(`Checking lesson ${lesson.title}:`, {
-            uniqueSectionTypes,
-            completedSections,
-            allSectionsActuallyCompleted,
-            progressStatus: progress.status
-          });
-          
+          const allSectionsActuallyCompleted =
+            uniqueSectionTypes.length > 0 &&
+            uniqueSectionTypes.every((type) =>
+              completedSections.includes(type)
+            );
+
           return !allSectionsActuallyCompleted;
         });
 

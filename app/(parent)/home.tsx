@@ -1,3 +1,5 @@
+import ErrorPage from "@/components/ErrorPage";
+import { router } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 
@@ -121,11 +123,13 @@ export default function ParentHome() {
 
   if (children.length === 0) {
     return (
-      <View style={{ flex: 1, padding: 16, justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ fontSize: 18, textAlign: "center", color: "#666" }}>
-          No children found. Contact your child's teacher to set up the parent connection.
-        </Text>
-      </View>
+      <ErrorPage
+        title="No Children Found"
+        message="No children are linked to your account yet"
+        subMessage="Ask your child's teacher to add you as a parent, or verify you're signed in with the correct email address."
+        buttonText="Check Settings"
+        onButtonPress={() => router.push("/(parent)/settings")}
+      />
     );
   }
 

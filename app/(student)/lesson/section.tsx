@@ -1,3 +1,5 @@
+import ErrorPage, { ErrorPages } from "@/components/ErrorPage";
+import { SectionSkeleton } from "@/components/SectionSkeleton";
 import { useAudioPlayer } from "expo-audio";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -12,6 +14,11 @@ import {
   showErrorBanner,
   showSuccessBanner,
 } from "../../../components/ShowAlert";
+import {
+  getItemAudio,
+  getPreferredDialect,
+  preloadItemAudio,
+} from "../../../services/audio";
 import { supabase } from "../../../services/supabase-init";
 
 type ItemRow = {
@@ -36,12 +43,48 @@ export default function SectionScreen() {
   const from = params.from || "lesson";
 
   const [items, setItems] = useState<ItemRow[]>([]);
-  const [lessonTitle, setLessonTitle] = useState<string>(""); // Add this
+  const [lessonTitle, setLessonTitle] = useState<string>("");
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [viewedItems, setViewedItems] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const player = useAudioPlayer();
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [preferredDialect, setPreferredDialect] = useState<
+    "classical" | "ecclesiastical"
+  >("classical");
+  const [preloadingItems, setPreloadingItems] = useState<Set<string>>(
+    new Set()
+  );
+
+  const currentItem = items[currentItemIndex];
+  const allItemsViewed = viewedItems.size === items.length;
+
+  useEffect(() => {
+    getPreferredDialect().then(setPreferredDialect);
+  }, []);
+
+  useEffect(() => {
+    if (!currentItem || preloadingItems.has(currentItem.id)) return;
+
+    const preloadTimer = setTimeout(() => {
+      if (currentItem) {
+        setPreloadingItems((prev) => new Set([...prev, currentItem.id]));
+
+        preloadItemAudio(currentItem, preferredDialect)
+          .catch(console.error)
+          .finally(() => {
+            setPreloadingItems((prev) => {
+              const newSet = new Set(prev);
+              newSet.delete(currentItem.id);
+              return newSet;
+            });
+          });
+      }
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(preloadTimer);
+  }, [currentItem?.id, preferredDialect]);
 
   useEffect(() => {
     if (!lessonId || !sectionType) return;
@@ -84,9 +127,6 @@ export default function SectionScreen() {
       setLoading(false);
     }
   };
-
-  const currentItem = items[currentItemIndex];
-  const allItemsViewed = viewedItems.size === items.length;
 
   const getSectionInfo = () => {
     switch (sectionType) {
@@ -132,12 +172,48 @@ export default function SectionScreen() {
 
   const play = async () => {
     if (!currentItem) return;
-    const uri =
-      currentItem.media?.audio_classical ||
-      currentItem.media?.audio_ecclesiastical;
-    if (!uri) return;
-    player.replace({ uri });
-    player.play();
+
+    setAudioLoading(true);
+    try {
+      let audioUrl =
+        currentItem.media?.audio_classical ||
+        currentItem.media?.audio_ecclesiastical;
+
+      if (!audioUrl) {
+        audioUrl = await getItemAudio(currentItem, preferredDialect);
+        setItems((prevItems) =>
+          prevItems.map((item) =>
+            item.id === currentItem.id
+              ? {
+                  ...item,
+                  media: {
+                    ...item.media,
+                    [preferredDialect === "classical"
+                      ? "audio_classical"
+                      : "audio_ecclesiastical"]: audioUrl,
+                  },
+                }
+              : item
+          )
+        );
+      }
+
+      if (audioUrl) {
+        try {
+          player.pause();
+        } catch (e) {
+          // Ignore pause errors
+        }
+
+        player.replace({ uri: audioUrl });
+        player.play();
+      }
+    } catch (error) {
+      console.error("Audio playback failed:", error);
+      showErrorBanner("Failed to play audio. Please try again.");
+    } finally {
+      setAudioLoading(false);
+    }
   };
 
   const goToPrevious = () => {
@@ -170,7 +246,7 @@ export default function SectionScreen() {
         .select("last_position")
         .eq("user_id", user.user.id)
         .eq("lesson_id", lessonId)
-        .maybeSingle(); // Use maybeSingle() instead of single()
+        .maybeSingle();
 
       const completedSections =
         existingProgress?.last_position?.completed_sections || [];
@@ -192,7 +268,7 @@ export default function SectionScreen() {
       const payload = {
         user_id: user.user.id,
         lesson_id: lessonId,
-        status: allSectionsComplete ? "completed" : "in_progress", // Fix this!
+        status: allSectionsComplete ? "completed" : "in_progress",
         last_position: {
           completed_sections: updatedSections,
           section_type: sectionType,
@@ -206,19 +282,13 @@ export default function SectionScreen() {
 
       if (allSectionsComplete) {
         showSuccessBanner("🎉 Lesson completed!", () => {
-          if (from === "lessons") {
-            router.push("/(student)/lessons");
-          } else {
-            router.push(`/lesson/${lessonId}?from=lessons`);
-          }
+          if (from === "lessons") router.push("/(student)/lessons");
+          else router.push(`/lesson/${lessonId}?from=lessons`);
         });
       } else {
         showSuccessBanner(`✓ ${sectionInfo.title} completed!`, () => {
-          if (from === "lessons") {
-            router.push("/(student)/lessons");
-          } else {
-            router.push(`/lesson/${lessonId}?from=lessons`);
-          }
+          if (from === "lessons") router.push("/(student)/lessons");
+          else router.push(`/lesson/${lessonId}?from=lessons`);
         });
       }
     } catch (error) {
@@ -227,57 +297,72 @@ export default function SectionScreen() {
   };
 
   const handleBack = () => {
-    if (from === "lessons") {
-      // Going back to lessons list
-      router.push("/(student)/lessons");
-    } else if (from === "lesson") {
-      // Going back to lesson overview
-      router.push(`/lesson/${lessonId}?from=lessons`);
-    } else {
-      // Default fallback to lessons
-      router.push("/(student)/lessons");
-    }
+    if (from === "lessons") router.push("/(student)/lessons");
+    else if (from === "lesson") router.push(`/lesson/${lessonId}?from=lessons`);
+    else router.push("/(student)/lessons");
   };
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
+  if (loading) return <SectionSkeleton />;
 
   if (err || !currentItem) {
-    return (
-      <View style={{ padding: 16 }}>
-        <Text style={{ color: "red", marginBottom: 8 }}>
-          {err || "Section not found"}
-        </Text>
-        {!currentItem && items.length === 0 && (
-          <Text style={{ color: "#6c757d", marginBottom: 16 }}>
-            No {sectionType} items found for this lesson.
-          </Text>
-        )}
-        <Pressable
-          onPress={() => router.push("/(student)/lessons")}
-          style={{
-            backgroundColor: "#007bff",
-            padding: 12,
-            borderRadius: 8,
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ color: "white", fontWeight: "600" }}>
-            Back to Lessons
-          </Text>
-        </Pressable>
-      </View>
-    );
+    if (err) {
+      return (
+        <ErrorPage
+          title="Section Error"
+          message={err}
+          subMessage="Please try again or go back to lessons"
+          buttonText="Back to Lessons"
+          onButtonPress={() => router.push("/(student)/lessons")}
+        />
+      );
+    }
+
+    if (!currentItem && items.length === 0)
+      return ErrorPages.SectionNotFound(lessonId);
+
+    return <ErrorPage />;
   }
 
-  const hasAudio =
-    !!currentItem?.media?.audio_classical ||
-    !!currentItem?.media?.audio_ecclesiastical;
+  const renderAudioButton = () => (
+    <Pressable
+      onPress={play}
+      disabled={audioLoading || !currentItem}
+      style={{
+        padding: 16,
+        backgroundColor: audioLoading ? "#999" : "#007AFF",
+        borderRadius: 12,
+        marginVertical: 8,
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "center",
+        opacity: audioLoading ? 0.6 : 1,
+        minHeight: 56,
+        minWidth: 250,
+      }}
+    >
+      {audioLoading ? (
+        <>
+          <ActivityIndicator
+            size="small"
+            color="white"
+            style={{ marginRight: 8 }}
+          />
+          <Text style={{ color: "white", fontWeight: "600" }}>
+            Generating...
+          </Text>
+        </>
+      ) : (
+        <>
+          <Text style={{ fontSize: 20, marginRight: 8 }}>🔊</Text>
+          <Text style={{ color: "white", fontWeight: "600" }}>
+            Play{" "}
+            {preferredDialect === "classical" ? "Classical" : "Ecclesiastical"}{" "}
+            Latin
+          </Text>
+        </>
+      )}
+    </Pressable>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
@@ -357,49 +442,26 @@ export default function SectionScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16, gap: 16 }}
       >
-        {/* Audio Button */}
-        <Pressable
-          onPress={hasAudio ? play : undefined}
-          style={{
-            opacity: hasAudio ? 1 : 0.5,
-            padding: 16,
-            backgroundColor: "#fff",
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: hasAudio ? "#e9ecef" : "#dee2e6",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.1,
-            shadowRadius: 2,
-            elevation: 2,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                backgroundColor: hasAudio ? "#4CAF50" : "#6c757d",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            >
-              <Text style={{ color: "white", fontSize: 18 }}>
-                {hasAudio ? "▶" : "♪"}
-              </Text>
-            </View>
+        {currentItem && (
+          <View style={{ padding: 20 }}>
+            {/* Your existing Latin text display */}
             <Text
               style={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: hasAudio ? "#212529" : "#6c757d",
+                fontSize: 24,
+                fontWeight: "bold",
+                textAlign: "center",
+                marginBottom: 16,
               }}
             >
-              {hasAudio ? "Play Audio" : "No audio yet"}
+              {currentItem.latin}
             </Text>
+
+            {/* Add the audio button */}
+            {renderAudioButton()}
+
+            {/* Rest of your existing UI */}
           </View>
-        </Pressable>
+        )}
 
         {/* Latin Text */}
         <View
