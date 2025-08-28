@@ -63,9 +63,7 @@ export default function TeacherSettings() {
         .eq("user_id", user.user.id)
         .single();
 
-      console.log("profileData", profileData);
       if (error && error.code !== "PGRST116") {
-        // PGRST116 = no rows returned
         console.error("Error loading profile:", error);
       } else if (profileData) {
         setProfile({
@@ -171,292 +169,298 @@ export default function TeacherSettings() {
   if (loading) return <SettingsSkeleton />;
 
   return (
-    <ScrollView style={{ flex: 1, padding: 16 }}>
-      {/* Teacher ID Card */}
-      <View
-        style={{
-          backgroundColor: "#ffffff",
-          borderRadius: 20,
-          padding: 24,
-          marginBottom: 20,
-          borderWidth: 2,
-          borderColor: "#3b82f6",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 8,
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* School Badge Header */}
+    <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
+      <ScrollView style={{ flex: 1, padding: 16 }}>
+        {/* Teacher ID Card */}
         <View
           style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 60,
-            backgroundColor: "#3b82f6",
-            borderTopLeftRadius: 18,
-            borderTopRightRadius: 18,
-          }}
-        />
-
-        {/* Edit Button - Simple Modern Style */}
-        <Pressable
-          onPress={() => setShowEditModal(true)}
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
             backgroundColor: "#ffffff",
-            borderRadius: 18,
-            width: 36,
-            height: 36,
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#3b82f6",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 8,
-            elevation: 5,
-            zIndex: 999,
-            borderWidth: 1.5,
-            borderColor: "#3b82f6",
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 14,
-              color: "#3b82f6",
-              fontWeight: "600",
-              lineHeight: 14,
-            }}
-          >
-            ✎
-          </Text>
-        </Pressable>
-
-        {/* School Name Banner */}
-        <View
-          style={{
-            alignItems: "center",
+            borderRadius: 20,
+            padding: 24,
             marginBottom: 20,
+            borderWidth: 2,
+            borderColor: "#3b82f6",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 8,
+            elevation: 8,
+            position: "relative",
+            overflow: "hidden",
           }}
         >
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "bold",
-              color: "white",
-              textAlign: "center",
-            }}
-          >
-            {profile.school_name || "School Name"}
-          </Text>
-        </View>
-
-        {/* Teacher Info Section */}
-        <View style={{ alignItems: "center", marginBottom: 20 }}>
-          {/* Avatar */}
+          {/* School Badge Header */}
           <View
             style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              backgroundColor: "#f1f5f9",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 60,
+              backgroundColor: "#3b82f6",
+              borderTopLeftRadius: 18,
+              borderTopRightRadius: 18,
+            }}
+          />
+
+          {/* Edit Button - Simple Modern Style */}
+          <Pressable
+            onPress={() => setShowEditModal(true)}
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              backgroundColor: "#ffffff",
+              borderRadius: 18,
+              width: 36,
+              height: 36,
               alignItems: "center",
               justifyContent: "center",
-              borderWidth: 4,
-              borderColor: "#fff",
-              marginBottom: 16,
-              shadowColor: "#000",
+              shadowColor: "#3b82f6",
               shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 4,
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 5,
+              zIndex: 999,
+              borderWidth: 1.5,
+              borderColor: "#3b82f6",
             }}
           >
-            {profile.avatar_url && profile.avatar_url.trim() !== "" ? (
-              <Image
-                source={{ uri: profile.avatar_url }}
-                style={{ width: 92, height: 92, borderRadius: 46 }}
-              />
-            ) : (
-              <Text style={{ fontSize: 48 }}>👩‍🏫</Text>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#3b82f6",
+                fontWeight: "600",
+                lineHeight: 14,
+              }}
+            >
+              ✎
+            </Text>
+          </Pressable>
+
+          {/* School Name Banner */}
+          <View
+            style={{
+              alignItems: "center",
+              marginBottom: 20,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "bold",
+                color: "white",
+                textAlign: "center",
+              }}
+            >
+              {profile.school_name || "School Name"}
+            </Text>
+          </View>
+
+          {/* Teacher Info Section */}
+          <View style={{ alignItems: "center", marginBottom: 20 }}>
+            {/* Avatar */}
+            <View
+              style={{
+                width: 100,
+                height: 100,
+                borderRadius: 50,
+                backgroundColor: "#f1f5f9",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 4,
+                borderColor: "#fff",
+                marginBottom: 16,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 4,
+              }}
+            >
+              {profile.avatar_url && profile.avatar_url.trim() !== "" ? (
+                <Image
+                  source={{ uri: profile.avatar_url }}
+                  style={{ width: 92, height: 92, borderRadius: 46 }}
+                />
+              ) : (
+                <Text style={{ fontSize: 48 }}>👩‍🏫</Text>
+              )}
+            </View>
+
+            {/* Teacher Name */}
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "bold",
+                color: "#1e293b",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              {profile.display_name || "Teacher"}
+            </Text>
+
+            {/* "Students Call Me" Badge */}
+            {profile.students_call_me && (
+              <View
+                style={{
+                  backgroundColor: "#8b5cf6",
+                  paddingHorizontal: 16,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  marginBottom: 16,
+                }}
+              >
+                <Text
+                  style={{
+                    color: "white",
+                    fontWeight: "bold",
+                    fontSize: 14,
+                  }}
+                >
+                  {profile.students_call_me}
+                </Text>
+              </View>
             )}
           </View>
 
-          {/* Teacher Name */}
-          <Text
-            style={{
-              fontSize: 22,
-              fontWeight: "bold",
-              color: "#1e293b",
-              textAlign: "center",
-              marginBottom: 8,
-            }}
-          >
-            {profile.display_name || "Teacher"}
-          </Text>
-
-          {/* "Students Call Me" Badge */}
-          {profile.students_call_me && (
-            <View
-              style={{
-                backgroundColor: "#8b5cf6",
-                paddingHorizontal: 16,
-                paddingVertical: 6,
-                borderRadius: 20,
-                marginBottom: 16,
-              }}
-            >
-              <Text
-                style={{
-                  color: "white",
-                  fontWeight: "bold",
-                  fontSize: 14,
-                }}
-              >
-                {profile.students_call_me}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Teacher ID Section */}
-        <View
-          style={{
-            backgroundColor: "#f8fafc",
-            borderRadius: 12,
-            padding: 16,
-            borderWidth: 1,
-            borderColor: "#e2e8f0",
-          }}
-        >
+          {/* Teacher ID Section */}
           <View
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
+              backgroundColor: "#f8fafc",
+              borderRadius: 12,
+              padding: 16,
+              borderWidth: 1,
+              borderColor: "#e2e8f0",
             }}
           >
-            <View>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: "#64748b",
-                  marginBottom: 4,
-                }}
-              >
-                TEACHER ID
-              </Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "bold",
-                  color: "#1e293b",
-                  fontFamily: "monospace",
-                }}
-              >
-                {email?.split("@")[0]?.toUpperCase() || "TEACHER"}
-              </Text>
-            </View>
-
-            {/* Badge Icon */}
             <View
               style={{
-                width: 50,
-                height: 50,
-                backgroundColor: "#3b82f6",
-                borderRadius: 8,
+                flexDirection: "row",
+                justifyContent: "space-between",
                 alignItems: "center",
-                justifyContent: "center",
               }}
             >
+              <View>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: "#64748b",
+                    marginBottom: 4,
+                  }}
+                >
+                  TEACHER ID
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    color: "#1e293b",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {email?.split("@")[0]?.toUpperCase() || "TEACHER"}
+                </Text>
+              </View>
+
+              {/* Badge Icon */}
               <View
                 style={{
-                  width: 40,
-                  height: 40,
-                  backgroundColor: "#fff",
-                  borderRadius: 4,
+                  width: 50,
+                  height: 50,
+                  backgroundColor: "#3b82f6",
+                  borderRadius: 8,
                   alignItems: "center",
                   justifyContent: "center",
                 }}
               >
-                <Text
-                  style={{ fontSize: 20, fontWeight: "bold", color: "#3b82f6" }}
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    backgroundColor: "#fff",
+                    borderRadius: 4,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
                 >
-                  ✓
-                </Text>
+                  <Text
+                    style={{
+                      fontSize: 20,
+                      fontWeight: "bold",
+                      color: "#3b82f6",
+                    }}
+                  >
+                    ✓
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
 
-        {/* Bio Section */}
-        {profile.bio && (
+          {/* Bio Section */}
+          {profile.bio && (
+            <View
+              style={{
+                marginTop: 16,
+                padding: 12,
+                backgroundColor: "#f9fafb",
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: "#f3f4f6",
+              }}
+            >
+              <Text style={{ fontSize: 14, color: "#374151", lineHeight: 20 }}>
+                {profile.bio}
+              </Text>
+            </View>
+          )}
+
+          {/* Decorative Elements */}
           <View
             style={{
-              marginTop: 16,
-              padding: 12,
-              backgroundColor: "#f9fafb",
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor: "#f3f4f6",
+              position: "absolute",
+              top: 80,
+              left: -10,
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              backgroundColor: "rgba(59, 130, 246, 0.1)",
             }}
-          >
-            <Text style={{ fontSize: 14, color: "#374151", lineHeight: 20 }}>
-              {profile.bio}
-            </Text>
-          </View>
-        )}
+          />
+          <View
+            style={{
+              position: "absolute",
+              top: 120,
+              right: -15,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: "rgba(139, 92, 246, 0.1)",
+            }}
+          />
+        </View>
 
-        {/* Decorative Elements */}
-        <View
+        {/* Sign Out Button */}
+        <Pressable
+          onPress={signOut}
           style={{
-            position: "absolute",
-            top: 80,
-            left: -10,
-            width: 30,
-            height: 30,
-            borderRadius: 15,
-            backgroundColor: "rgba(59, 130, 246, 0.1)",
+            padding: 16,
+            backgroundColor: "#fff5f5",
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: "#ffdddd",
+            marginBottom: 32,
+            alignItems: "center",
           }}
-        />
-        <View
-          style={{
-            position: "absolute",
-            top: 120,
-            right: -15,
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: "rgba(139, 92, 246, 0.1)",
-          }}
-        />
-      </View>
-
-      {/* Sign Out Button */}
-      <Pressable
-        onPress={signOut}
-        style={{
-          padding: 16,
-          backgroundColor: "#fff5f5",
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: "#ffdddd",
-          marginBottom: 32,
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ fontSize: 16, fontWeight: "600", color: "#d32f2f" }}>
-          Sign Out
-        </Text>
-      </Pressable>
+        >
+          <Text style={{ fontSize: 16, fontWeight: "600", color: "#d32f2f" }}>
+            Sign Out
+          </Text>
+        </Pressable>
+      </ScrollView>
 
       {/* Edit Profile Modal */}
       <Modal
@@ -477,6 +481,10 @@ export default function TeacherSettings() {
               borderBottomColor: "#e9ecef",
             }}
           >
+            <View style={{ width: 50 }} />
+            <Text style={{ fontSize: 18, fontWeight: "700", color: "#212529" }}>
+              Edit Profile
+            </Text>
             <Pressable onPress={() => setShowEditModal(false)}>
               <Text
                 style={{ fontSize: 16, color: "#6c757d", fontWeight: "500" }}
@@ -484,10 +492,6 @@ export default function TeacherSettings() {
                 Cancel
               </Text>
             </Pressable>
-            <Text style={{ fontSize: 18, fontWeight: "700", color: "#212529" }}>
-              Edit Profile
-            </Text>
-            <View style={{ width: 50 }} />
           </View>
 
           {/* Content - No ScrollView */}
@@ -695,6 +699,6 @@ export default function TeacherSettings() {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 }

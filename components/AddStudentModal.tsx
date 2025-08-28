@@ -1,8 +1,8 @@
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -24,6 +24,8 @@ interface StudentFormData {
   parent_email: string;
 }
 
+const GRADE_LEVELS = ["6", "7", "8", "9", "10", "11", "12"];
+
 export default function AddStudentModal({
   visible,
   onClose,
@@ -37,6 +39,7 @@ export default function AddStudentModal({
     parent_email: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [showGradePicker, setShowGradePicker] = useState(false);
 
   const validateForm = (): string[] => {
     const errors: string[] = [];
@@ -57,7 +60,7 @@ export default function AddStudentModal({
 
     if (!formData.grade_level.trim()) {
       errors.push("Grade Level is required");
-    } else if (!/^(6|7|8|9|10|11|12)$/.test(formData.grade_level.trim())) {
+    } else if (!GRADE_LEVELS.includes(formData.grade_level.trim())) {
       errors.push("Grade Level must be 6, 7, 8, 9, 10, 11, or 12");
     }
 
@@ -146,7 +149,7 @@ export default function AddStudentModal({
         currentYear = newYear;
       }
 
-      // Create student directly via provision function (simplified)
+      // Create student directly via provision function
       const response = await fetch(
         `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/provision-roster`,
         {
@@ -181,13 +184,8 @@ export default function AddStudentModal({
         showSuccessAlert(
           `Student ${formData.first_name} ${formData.last_name} added successfully!`,
           () => {
-            setFormData({
-              student_id: "",
-              first_name: "",
-              last_name: "",
-              grade_level: "",
-              parent_email: "",
-            });
+            resetForm();
+            onStudentAdded(result);
             onClose();
           }
         );
@@ -201,6 +199,7 @@ export default function AddStudentModal({
       setSubmitting(false);
     }
   };
+
   const resetForm = () => {
     setFormData({
       student_id: "",
@@ -229,52 +228,67 @@ export default function AddStudentModal({
       onRequestClose={onClose}
     >
       <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
-        {/* Header */}
+        {/* Header - matches teacher settings pattern */}
         <View
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: 16,
-            backgroundColor: "#fff",
+            padding: 20,
+            backgroundColor: "#ffffff",
             borderBottomWidth: 1,
             borderBottomColor: "#e9ecef",
           }}
         >
-          <Text style={{ fontSize: 20, fontWeight: "700" }}>
-            Add New Student
+          <Pressable
+            onPress={() => {
+              resetForm();
+              onClose();
+            }}
+          ></Pressable>
+          <View style={{}} />
+          <Text style={{ fontSize: 18, fontWeight: "700", color: "#212529" }}>
+            Add Student
           </Text>
           <Pressable
             onPress={() => {
               resetForm();
               onClose();
             }}
-            style={{
-              padding: 8,
-              borderRadius: 20,
-              backgroundColor: "#f8f9fa",
-            }}
           >
-            <Text style={{ fontSize: 16, fontWeight: "600", color: "#666" }}>
-              ✕
+            <Text style={{ fontSize: 16, color: "#6c757d", fontWeight: "500" }}>
+              Cancel
             </Text>
           </Pressable>
         </View>
 
-        <ScrollView style={{ flex: 1, padding: 16 }}>
-          <Text style={{ color: "#666", marginBottom: 20 }}>
-            Add a single student to your class. This will create their account
-            and send a parent invitation.
-          </Text>
-
-          {/* Form Fields */}
-          <View style={{ gap: 16 }}>
-            {/* Student ID */}
-            <View>
+        {/* Content - No ScrollView, designed to fit */}
+        <View style={{ flex: 1, padding: 16 }}>
+          {/* Form Container */}
+          <View
+            style={{
+              backgroundColor: "white",
+              borderRadius: 16,
+              padding: 20,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
+              elevation: 4,
+              flex: 1,
+            }}
+          >
+            {/* Student ID - Compact */}
+            <View style={{ marginBottom: 16 }}>
               <Text
-                style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}
+                style={{
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: "#212529",
+                  marginBottom: 6,
+                }}
               >
-                Student ID <Text style={{ color: "#dc3545" }}>*</Text>
+                Student ID
               </Text>
               <TextInput
                 value={formData.student_id}
@@ -288,180 +302,337 @@ export default function AddStudentModal({
                 keyboardType="number-pad"
                 maxLength={10}
                 style={{
-                  borderWidth: 1,
-                  borderColor: "#ccc",
-                  borderRadius: 8,
+                  borderWidth: 2,
+                  borderColor: formData.student_id ? "#2196F3" : "#e9ecef",
+                  borderRadius: 12,
                   padding: 12,
-                  backgroundColor: "#fff",
                   fontSize: 16,
+                  backgroundColor: "#f8f9fa",
                 }}
               />
-              <Text style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
-                3-10 digits only
-              </Text>
             </View>
 
-            {/* First Name */}
-            <View>
+            {/* Name Fields Row - More compact */}
+            <View
+              style={{
+                flexDirection: "row",
+                gap: 12,
+                marginBottom: 16,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#212529",
+                    marginBottom: 6,
+                  }}
+                >
+                  First Name
+                </Text>
+                <TextInput
+                  value={formData.first_name}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, first_name: text })
+                  }
+                  placeholder="Emma"
+                  autoCapitalize="words"
+                  style={{
+                    borderWidth: 2,
+                    borderColor: formData.first_name ? "#2196F3" : "#e9ecef",
+                    borderRadius: 12,
+                    padding: 12,
+                    fontSize: 16,
+                    backgroundColor: "#f8f9fa",
+                  }}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#212529",
+                    marginBottom: 6,
+                  }}
+                >
+                  Last Name
+                </Text>
+                <TextInput
+                  value={formData.last_name}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, last_name: text })
+                  }
+                  placeholder="Johnson"
+                  autoCapitalize="words"
+                  style={{
+                    borderWidth: 2,
+                    borderColor: formData.last_name ? "#2196F3" : "#e9ecef",
+                    borderRadius: 12,
+                    padding: 12,
+                    fontSize: 16,
+                    backgroundColor: "#f8f9fa",
+                  }}
+                />
+              </View>
+            </View>
+
+            {/* Grade Level - Compact */}
+            <View style={{ marginBottom: 16 }}>
               <Text
-                style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}
-              >
-                First Name <Text style={{ color: "#dc3545" }}>*</Text>
-              </Text>
-              <TextInput
-                value={formData.first_name}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, first_name: text })
-                }
-                placeholder="e.g., Emma"
-                autoCapitalize="words"
                 style={{
-                  borderWidth: 1,
-                  borderColor: "#ccc",
-                  borderRadius: 8,
-                  padding: 12,
-                  backgroundColor: "#fff",
-                  fontSize: 16,
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: "#212529",
+                  marginBottom: 6,
                 }}
-              />
-            </View>
-
-            {/* Last Name */}
-            <View>
-              <Text
-                style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}
               >
-                Last Name <Text style={{ color: "#dc3545" }}>*</Text>
+                Grade Level
               </Text>
-              <TextInput
-                value={formData.last_name}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, last_name: text })
-                }
-                placeholder="e.g., Johnson"
-                autoCapitalize="words"
+              <Pressable
+                onPress={() => setShowGradePicker(true)}
                 style={{
-                  borderWidth: 1,
-                  borderColor: "#ccc",
-                  borderRadius: 8,
+                  borderWidth: 2,
+                  borderColor: formData.grade_level ? "#2196F3" : "#e9ecef",
+                  borderRadius: 12,
                   padding: 12,
-                  backgroundColor: "#fff",
-                  fontSize: 16,
+                  backgroundColor: "#f8f9fa",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
-              />
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: formData.grade_level ? "#212529" : "#6c757d",
+                  }}
+                >
+                  {formData.grade_level
+                    ? `Grade ${formData.grade_level}`
+                    : "Select grade level"}
+                </Text>
+                <Text style={{ color: "#6c757d", fontSize: 16 }}>▼</Text>
+              </Pressable>
             </View>
 
-            {/* Grade Level */}
-            <View>
+            {/* Parent Email - Compact */}
+            <View style={{ marginBottom: 16 }}>
               <Text
-                style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}
-              >
-                Grade Level <Text style={{ color: "#dc3545" }}>*</Text>
-              </Text>
-              <TextInput
-                value={formData.grade_level}
-                onChangeText={(text) =>
-                  setFormData({
-                    ...formData,
-                    grade_level: text.replace(/[^\d]/g, ""),
-                  })
-                }
-                placeholder="e.g., 9"
-                keyboardType="number-pad"
-                maxLength={2}
                 style={{
-                  borderWidth: 1,
-                  borderColor: "#ccc",
-                  borderRadius: 8,
-                  padding: 12,
-                  backgroundColor: "#fff",
-                  fontSize: 16,
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: "#212529",
+                  marginBottom: 6,
                 }}
-              />
-              <Text style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
-                Must be 6, 7, 8, 9, 10, 11, or 12
-              </Text>
-            </View>
-
-            {/* Parent Email */}
-            <View>
-              <Text
-                style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}
               >
-                Parent Email <Text style={{ color: "#dc3545" }}>*</Text>
+                Parent Email
               </Text>
               <TextInput
                 value={formData.parent_email}
                 onChangeText={(text) =>
                   setFormData({ ...formData, parent_email: text })
                 }
-                placeholder="e.g., parent@email.com"
+                placeholder="parent@email.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 style={{
-                  borderWidth: 1,
-                  borderColor: "#ccc",
-                  borderRadius: 8,
+                  borderWidth: 2,
+                  borderColor: formData.parent_email ? "#2196F3" : "#e9ecef",
+                  borderRadius: 12,
                   padding: 12,
-                  backgroundColor: "#fff",
                   fontSize: 16,
+                  backgroundColor: "#f8f9fa",
                 }}
               />
-              <Text style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
-                A parent invitation will be sent
-              </Text>
             </View>
-          </View>
 
-          {/* Info Box */}
-          <View
-            style={{
-              marginTop: 20,
-              padding: 16,
-              backgroundColor: "#d1ecf1",
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: "#bee5eb",
-            }}
-          >
-            <Text style={{ fontSize: 14, color: "#0c5460", fontWeight: "600" }}>
-              What happens when you add a student:
-            </Text>
-            <Text style={{ fontSize: 14, color: "#0c5460", marginTop: 8 }}>
-              • Student account is created with login credentials
-            </Text>
-            <Text style={{ fontSize: 14, color: "#0c5460" }}>
-              • Student is enrolled in your class
-            </Text>
-            <Text style={{ fontSize: 14, color: "#0c5460" }}>
-              • Parent invitation is sent
-            </Text>
-          </View>
-
-          {/* Submit Button */}
-          <Pressable
-            onPress={handleSubmit}
-            disabled={submitting || !isFormComplete()}
-            style={{
-              marginTop: 24,
-              padding: 16,
-              backgroundColor:
-                submitting || !isFormComplete() ? "#ccc" : "#28a745",
-              borderRadius: 12,
-            }}
-          >
-            <Text
+            {/* What happens info - More detailed version */}
+            <View
               style={{
-                color: "#fff",
-                textAlign: "center",
-                fontWeight: "700",
-                fontSize: 16,
+                backgroundColor: "#e3f2fd",
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 16,
+                borderLeftWidth: 3,
+                borderLeftColor: "#2196f3",
               }}
             >
-              {submitting ? "Adding Student..." : "Add Student"}
-            </Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: "#1976d2",
+                  marginBottom: 10,
+                }}
+              >
+                What happens when you add this student:
+              </Text>
+              
+              <View style={{ gap: 6 }}>
+                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                  <View style={{ 
+                    width: 6, 
+                    height: 6, 
+                    borderRadius: 3, 
+                    backgroundColor: "#1976d2",
+                    marginRight: 8,
+                    marginTop: 6
+                  }} />
+                  <Text style={{ color: "#1565c0", fontSize: 12, flex: 1, lineHeight: 18 }}>
+                    <Text style={{ fontWeight: "600" }}>Student account created</Text> with secure login credentials (Name + Student ID)
+                  </Text>
+                </View>
+                
+                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                  <View style={{ 
+                    width: 6, 
+                    height: 6, 
+                    borderRadius: 3, 
+                    backgroundColor: "#1976d2",
+                    marginRight: 8,
+                    marginTop: 6
+                  }} />
+                  <Text style={{ color: "#1565c0", fontSize: 12, flex: 1, lineHeight: 18 }}>
+                    <Text style={{ fontWeight: "600" }}>Automatically enrolled</Text> in your class for immediate access
+                  </Text>
+                </View>
+                
+                <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                  <View style={{ 
+                    width: 6, 
+                    height: 6, 
+                    borderRadius: 3, 
+                    backgroundColor: "#1976d2",
+                    marginRight: 8,
+                    marginTop: 6
+                  }} />
+                  <Text style={{ color: "#1565c0", fontSize: 12, flex: 1, lineHeight: 18 }}>
+                    <Text style={{ fontWeight: "600" }}>Parent invitation sent</Text> to connect and monitor progress
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Spacer to push button to bottom */}
+            <View style={{ flex: 1 }} />
+
+            {/* Submit Button */}
+            <Pressable
+              onPress={handleSubmit}
+              disabled={submitting || !isFormComplete()}
+              style={{
+                padding: 16,
+                backgroundColor:
+                  submitting || !isFormComplete() ? "#e9ecef" : "#2196F3",
+                borderRadius: 12,
+                shadowColor:
+                  submitting || !isFormComplete() ? "transparent" : "#2196F3",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: submitting || !isFormComplete() ? 0 : 4,
+              }}
+            >
+              {submitting ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text
+                  style={{
+                    color:
+                      submitting || !isFormComplete() ? "#6c757d" : "white",
+                    textAlign: "center",
+                    fontWeight: "700",
+                    fontSize: 16,
+                  }}
+                >
+                  Add Student
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Grade Level Picker Modal */}
+        <Modal
+          visible={showGradePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowGradePicker(false)}
+        >
+          <Pressable
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 20,
+            }}
+            onPress={() => setShowGradePicker(false)}
+          >
+            <View
+              style={{
+                backgroundColor: "#fff",
+                borderRadius: 16,
+                padding: 20,
+                width: "100%",
+                maxWidth: 300,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 8,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "700",
+                  textAlign: "center",
+                  marginBottom: 16,
+                  color: "#212529",
+                }}
+              >
+                Select Grade Level
+              </Text>
+
+              <View style={{ gap: 8 }}>
+                {GRADE_LEVELS.map((grade) => (
+                  <Pressable
+                    key={grade}
+                    onPress={() => {
+                      setFormData({ ...formData, grade_level: grade });
+                      setShowGradePicker(false);
+                    }}
+                    style={{
+                      padding: 12,
+                      borderRadius: 12,
+                      backgroundColor:
+                        formData.grade_level === grade ? "#2196F3" : "#f8f9fa",
+                      borderWidth: 2,
+                      borderColor:
+                        formData.grade_level === grade ? "#2196F3" : "#e9ecef",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        textAlign: "center",
+                        fontWeight: "600",
+                        fontSize: 14,
+                        color:
+                          formData.grade_level === grade ? "white" : "#212529",
+                      }}
+                    >
+                      Grade {grade}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
           </Pressable>
-        </ScrollView>
+        </Modal>
       </View>
     </Modal>
   );

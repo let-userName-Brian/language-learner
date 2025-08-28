@@ -49,13 +49,9 @@ export const ShowAlert = ({ title, message, buttons }: AlertOptions) => {
 
 // New banner functions
 export const showBanner = (options: BannerOptions) => {
-  // Execute callback immediately
   options.onShow?.();
-  
-  // Show banner
-  if (globalBannerState) {
-    globalBannerState.show(options);
-  }
+
+  if (globalBannerState) globalBannerState.show(options);
 };
 
 export const showSuccessBanner = (message: string, onShow?: () => void) => {
@@ -78,7 +74,9 @@ export const showErrorBanner = (message: string, onShow?: () => void) => {
 export const GlobalBanner = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [bannerMessage, setBannerMessage] = useState("");
-  const [bannerType, setBannerType] = useState<"success" | "error" | "info">("info");
+  const [bannerType, setBannerType] = useState<"success" | "error" | "info">(
+    "info"
+  );
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-100)).current;
 
@@ -143,25 +141,34 @@ export const GlobalBanner = () => {
 
   const getBackgroundColor = () => {
     switch (bannerType) {
-      case "success": return "#d4edda";
-      case "error": return "#f8d7da";
-      default: return "#d1ecf1";
+      case "success":
+        return "#d4edda";
+      case "error":
+        return "#f8d7da";
+      default:
+        return "#d1ecf1";
     }
   };
 
   const getTextColor = () => {
     switch (bannerType) {
-      case "success": return "#155724";
-      case "error": return "#721c24";
-      default: return "#0c5460";
+      case "success":
+        return "#155724";
+      case "error":
+        return "#721c24";
+      default:
+        return "#0c5460";
     }
   };
 
   const getBorderColor = () => {
     switch (bannerType) {
-      case "success": return "#c3e6cb";
-      case "error": return "#f5c6cb";
-      default: return "#bee5eb";
+      case "success":
+        return "#c3e6cb";
+      case "error":
+        return "#f5c6cb";
+      default:
+        return "#bee5eb";
     }
   };
 
@@ -187,12 +194,14 @@ export const GlobalBanner = () => {
         elevation: 5,
       }}
     >
-      <Text style={{
-        color: getTextColor(),
-        fontSize: 16,
-        fontWeight: "600",
-        textAlign: "center",
-      }}>
+      <Text
+        style={{
+          color: getTextColor(),
+          fontSize: 16,
+          fontWeight: "600",
+          textAlign: "center",
+        }}
+      >
         {bannerMessage}
       </Text>
     </Animated.View>

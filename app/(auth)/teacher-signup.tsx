@@ -1,10 +1,10 @@
-import { AccessiblePicker } from "@/components/AccessiblePicker";
 import { showErrorAlert, showSuccessAlert } from "@/components/ShowAlert";
 import { supabase } from "@/services/supabase-init";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -23,6 +23,7 @@ export default function TeacherSignUp() {
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showSchoolPicker, setShowSchoolPicker] = useState(false);
 
   // Load schools for picker
   useEffect(() => {
@@ -45,6 +46,12 @@ export default function TeacherSignUp() {
       }
     })();
   }, []);
+
+  const getSelectedSchoolName = () => {
+    if (!schoolSlug) return "Select your school";
+    const selectedSchool = schools.find((s) => s.slug === schoolSlug);
+    return selectedSchool?.name || "Select your school";
+  };
 
   const canSubmit = useMemo(() => {
     const firstNameOk = firstName.trim().length >= 1;
@@ -119,7 +126,6 @@ export default function TeacherSignUp() {
         paddingTop: 60,
       }}
     >
-      {/* Header */}
       <View
         style={{
           alignItems: "center",
@@ -169,7 +175,6 @@ export default function TeacherSignUp() {
         </Text>
       </View>
 
-      {/* Form Container */}
       <View
         style={{
           backgroundColor: "white",
@@ -183,7 +188,6 @@ export default function TeacherSignUp() {
           marginBottom: 24,
         }}
       >
-        {/* School Selection */}
         <View style={{ marginBottom: 20 }}>
           <Text
             style={{
@@ -195,25 +199,31 @@ export default function TeacherSignUp() {
           >
             School
           </Text>
-          <View
+          <Pressable
+            onPress={() => setShowSchoolPicker(true)}
             style={{
               borderWidth: 2,
               borderColor: schoolSlug ? "#2196F3" : "#e9ecef",
               borderRadius: 12,
+              padding: 16,
               backgroundColor: "#f8f9fa",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
-            <AccessiblePicker
-              selectedValue={schoolSlug}
-              onValueChange={setSchoolSlug}
-              items={schools.map((s) => ({ label: s.name, value: s.slug }))}
-              accessibilityLabel="Select your school"
-              placeholder="Choose your school"
-            />
-          </View>
+            <Text
+              style={{
+                fontSize: 16,
+                color: schoolSlug ? "#212529" : "#6c757d",
+              }}
+            >
+              {getSelectedSchoolName()}
+            </Text>
+            <Text style={{ color: "#6c757d", fontSize: 16 }}>▼</Text>
+          </Pressable>
         </View>
 
-        {/* Name Fields Row */}
         <View
           style={{
             flexDirection: "row",
@@ -276,7 +286,6 @@ export default function TeacherSignUp() {
           </View>
         </View>
 
-        {/* Email Field */}
         <View style={{ marginBottom: 20 }}>
           <Text
             style={{
@@ -305,7 +314,6 @@ export default function TeacherSignUp() {
           />
         </View>
 
-        {/* Password Fields */}
         <View style={{ marginBottom: 20 }}>
           <Text
             style={{
@@ -363,7 +371,7 @@ export default function TeacherSignUp() {
               backgroundColor: "#f8f9fa",
             }}
           />
-          {pw2 && pw !== pw2 && (
+          {pw2 && pw !== pw2 ? (
             <Text
               style={{
                 color: "#f44336",
@@ -374,10 +382,9 @@ export default function TeacherSignUp() {
             >
               Passwords don't match
             </Text>
-          )}
+          ) : null}
         </View>
 
-        {/* Create Account Button */}
         <Pressable
           onPress={submit}
           disabled={!canSubmit}
@@ -409,7 +416,6 @@ export default function TeacherSignUp() {
         </Pressable>
       </View>
 
-      {/* Portal Selector */}
       <View
         style={{
           backgroundColor: "white",
@@ -508,6 +514,87 @@ export default function TeacherSignUp() {
           </Pressable>
         </View>
       </View>
+
+      <Modal
+        visible={showSchoolPicker}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSchoolPicker(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+          onPress={() => setShowSchoolPicker(false)}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 16,
+              padding: 20,
+              width: "100%",
+              maxWidth: 300,
+              maxHeight: "70%",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                textAlign: "center",
+                marginBottom: 16,
+                color: "#212529",
+              }}
+            >
+              Select School
+            </Text>
+
+            <ScrollView style={{ maxHeight: 300 }}>
+              <View style={{ gap: 8 }}>
+                {schools.map((school) => (
+                  <Pressable
+                    key={school.slug}
+                    onPress={() => {
+                      setSchoolSlug(school.slug);
+                      setShowSchoolPicker(false);
+                    }}
+                    style={{
+                      padding: 12,
+                      borderRadius: 12,
+                      backgroundColor:
+                        schoolSlug === school.slug ? "#2196F3" : "#f8f9fa",
+                      borderWidth: 2,
+                      borderColor:
+                        schoolSlug === school.slug ? "#2196F3" : "#e9ecef",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        textAlign: "center",
+                        fontWeight: "600",
+                        fontSize: 14,
+                        color:
+                          schoolSlug === school.slug ? "white" : "#212529",
+                      }}
+                    >
+                      {school.name}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }

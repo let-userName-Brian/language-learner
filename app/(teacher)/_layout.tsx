@@ -39,6 +39,13 @@ export default function TeacherLayout() {
           ),
         }} 
       />
+
+      <Tabs.Screen 
+        name="student/[id]" 
+        options={{ 
+          href: null,
+        }} 
+      />
     </Tabs>
   );
 }

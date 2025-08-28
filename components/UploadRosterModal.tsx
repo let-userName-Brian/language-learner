@@ -1,5 +1,11 @@
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  Text,
+  View
+} from "react-native";
 import { supabase } from "../services/supabase-init";
 import { pickExcelFile, readFileContent } from "./FilePicker";
 import { showErrorAlert, showSuccessAlert } from "./ShowAlert";
@@ -100,8 +106,7 @@ export default function UploadRosterModal({
       ]),
     };
 
-    // Validation: Must have either first/last names OR full name
-    // Validation: Must have first/last names (no more full name option)
+    // Validation: Must have first/last names
     const hasFirstLast =
       columnMap.first_name !== -1 && columnMap.last_name !== -1;
 
@@ -150,6 +155,7 @@ export default function UploadRosterModal({
         columnMap.parent_last_name !== -1
           ? parts[columnMap.parent_last_name]?.trim()
           : undefined;
+
       // Validation
       if (!studentId) {
         errors.push(`Row ${rowNum}: Missing Student ID`);
@@ -378,262 +384,431 @@ export default function UploadRosterModal({
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
+      onRequestClose={onClose}
     >
-      <ScrollView style={{ flex: 1, padding: 16 }}>
+      <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
+        {/* Header - matches AddStudentModal */}
         <View
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: 16,
+            padding: 20,
+            backgroundColor: "#ffffff",
+            borderBottomWidth: 1,
+            borderBottomColor: "#e9ecef",
           }}
         >
-          <Text style={{ fontSize: 20, fontWeight: "700" }}>Upload Roster</Text>
-          <Pressable onPress={onClose} style={{ padding: 8 }}>
-            <Text style={{ fontSize: 16, color: "#666" }}>✕</Text>
+          <View style={{ width: 50 }} />
+          <Text style={{ fontSize: 18, fontWeight: "700", color: "#212529" }}>
+            Upload Roster
+          </Text>
+          <Pressable
+            onPress={() => {
+              setValidationResults(null);
+              onClose();
+            }}
+          >
+            <Text style={{ fontSize: 16, color: "#6c757d", fontWeight: "500" }}>
+              Cancel
+            </Text>
           </Pressable>
         </View>
 
-        {!validationResults ? (
-          <>
-            {/* File Format Guide */}
-            <View
-              style={{
-                backgroundColor: "#fff3cd",
-                borderRadius: 8,
-                padding: 16,
-                marginBottom: 16,
-                borderWidth: 1,
-                borderColor: "#ffeaa7",
-              }}
-            >
-              <Text
+        <View style={{ flex: 1, padding: 16 }}>
+          {!validationResults ? (
+            <>
+              {/* Instructions Card - Enhanced */}
+              <View
                 style={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  marginBottom: 12,
-                  color: "#856404",
+                  backgroundColor: "white",
+                  borderRadius: 16,
+                  padding: 20,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 8,
+                  elevation: 4,
+                  marginBottom: 16,
                 }}
               >
-                📋 Column Requirements (Option 1: Separate Names)
-              </Text>
-              <Text style={{ color: "#856404", marginBottom: 12 }}>
-                Recommended format with separate name columns:
-              </Text>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    color: "#212529",
+                    marginBottom: 12,
+                  }}
+                >
+                  📋 CSV File Requirements
+                </Text>
 
-              <View style={{ marginLeft: 10, gap: 8, marginBottom: 16 }}>
-                <View>
-                  <Text style={{ color: "#856404", fontWeight: "600" }}>
-                    ✅ Student ID (required)
-                  </Text>
-                  <Text style={{ color: "#856404", fontSize: 12 }}>
-                    Also accepts: "Student Number", "ID", "StudentID"
-                  </Text>
-                </View>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: "#6c757d",
+                    marginBottom: 16,
+                    lineHeight: 20,
+                  }}
+                >
+                  Upload a CSV file with your student roster. Make sure your file includes these required columns:
+                </Text>
 
-                <View>
-                  <Text style={{ color: "#856404", fontWeight: "600" }}>
-                    ✅ First Name (required)
-                  </Text>
-                  <Text style={{ color: "#856404", fontSize: 12 }}>
-                    Also accepts: "Given Name", "FirstName"
-                  </Text>
-                </View>
+                <View style={{ gap: 12 }}>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                    <View style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: "#dc3545",
+                      marginRight: 10,
+                      marginTop: 8
+                    }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: "#212529", fontWeight: "600", fontSize: 14 }}>
+                        Student ID <Text style={{ color: "#dc3545" }}>*</Text>
+                      </Text>
+                      <Text style={{ color: "#6c757d", fontSize: 12, lineHeight: 16 }}>
+                        3-10 digits only. Also accepts: "Student Number", "ID", "StudentID"
+                      </Text>
+                    </View>
+                  </View>
 
-                <View>
-                  <Text style={{ color: "#856404", fontWeight: "600" }}>
-                    ✅ Last Name (required)
-                  </Text>
-                  <Text style={{ color: "#856404", fontSize: 12 }}>
-                    Also accepts: "Surname", "Family Name", "LastName"
-                  </Text>
-                </View>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                    <View style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: "#dc3545",
+                      marginRight: 10,
+                      marginTop: 8
+                    }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: "#212529", fontWeight: "600", fontSize: 14 }}>
+                        First Name & Last Name <Text style={{ color: "#dc3545" }}>*</Text>
+                      </Text>
+                      <Text style={{ color: "#6c757d", fontSize: 12, lineHeight: 16 }}>
+                        Separate columns required. Also accepts: "Given Name", "Surname", "Family Name"
+                      </Text>
+                    </View>
+                  </View>
 
-                <View>
-                  <Text style={{ color: "#856404", fontWeight: "600" }}>
-                    ✅ Grade Level (required)
-                  </Text>
-                  <Text style={{ color: "#856404", fontSize: 12 }}>
-                    Must be 6-12 (or similar)
-                  </Text>
-                </View>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                    <View style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: "#dc3545",
+                      marginRight: 10,
+                      marginTop: 8
+                    }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: "#212529", fontWeight: "600", fontSize: 14 }}>
+                        Grade Level <Text style={{ color: "#dc3545" }}>*</Text>
+                      </Text>
+                      <Text style={{ color: "#6c757d", fontSize: 12, lineHeight: 16 }}>
+                        Must be 6, 7, 8, 9, 10, 11, or 12. Also accepts: "Grade"
+                      </Text>
+                    </View>
+                  </View>
 
-                <View>
-                  <Text style={{ color: "#856404", fontWeight: "600" }}>
-                    📧 Parent Email (required)
-                  </Text>
-                  <Text style={{ color: "#856404", fontSize: 12 }}>
-                    Also accepts: "Guardian Email", "Email"
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                    <View style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: "#dc3545",
+                      marginRight: 10,
+                      marginTop: 8
+                    }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: "#212529", fontWeight: "600", fontSize: 14 }}>
+                        Parent Email <Text style={{ color: "#dc3545" }}>*</Text>
+                      </Text>
+                      <Text style={{ color: "#6c757d", fontSize: 12, lineHeight: 16 }}>
+                        Valid email address. Also accepts: "Guardian Email", "Email"
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+                    <View style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: "#28a745",
+                      marginRight: 10,
+                      marginTop: 8
+                    }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: "#212529", fontWeight: "600", fontSize: 14 }}>
+                        Parent First Name & Parent Last Name <Text style={{ color: "#28a745" }}>Optional</Text>
+                      </Text>
+                      <Text style={{ color: "#6c757d", fontSize: 12, lineHeight: 16 }}>
+                        If provided, will be used for parent accounts
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
-            </View>
 
-            <Pressable
-              onPress={handleFileUpload}
-              style={{
-                backgroundColor: "#3b82f6",
-                paddingVertical: 14,
-                borderRadius: 8,
-                alignItems: "center",
-                marginBottom: 16,
-              }}
-            >
-              <Text style={{ color: "white", fontSize: 16, fontWeight: "600" }}>
-                📁 Select CSV File
-              </Text>
-            </Pressable>
-
-            <View
-              style={{
-                backgroundColor: "#f0f9ff",
-                borderRadius: 6,
-                padding: 12,
-                borderLeftWidth: 3,
-                borderLeftColor: "#3b82f6",
-              }}
-            >
-              <Text
-                style={{ color: "#1e40af", fontSize: 12, fontStyle: "italic" }}
-              >
-                💡 Tip: Column names are case-insensitive and flexible. "First
-                Name", "first_name", and "FirstName" all work!
-              </Text>
-            </View>
-          </>
-        ) : (
-          <>
-            {/* Validation Results */}
-            <View style={{ marginBottom: 16 }}>
-              <Text
-                style={{ fontSize: 16, fontWeight: "600", marginBottom: 8 }}
-              >
-                Validation Results
-              </Text>
-
-              {validationResults.errors.length > 0 ? (
-                <View
-                  style={{
-                    backgroundColor: "#fef2f2",
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 12,
-                    borderWidth: 1,
-                    borderColor: "#fecaca",
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "#dc2626",
-                      fontWeight: "600",
-                      marginBottom: 8,
-                    }}
-                  >
-                    ❌ Found {validationResults.errors.length} Error(s):
-                  </Text>
-                  {validationResults.errors.map((error, index) => (
-                    <Text
-                      key={index}
-                      style={{
-                        color: "#dc2626",
-                        fontSize: 12,
-                        marginBottom: 4,
-                      }}
-                    >
-                      • {error}
-                    </Text>
-                  ))}
-                </View>
-              ) : (
-                <View
-                  style={{
-                    backgroundColor: "#f0fdf4",
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 12,
-                    borderWidth: 1,
-                    borderColor: "#bbf7d0",
-                  }}
-                >
-                  <Text style={{ color: "#16a34a", fontWeight: "600" }}>
-                    ✅ Validation Successful! Found{" "}
-                    {validationResults.rows.length} valid student(s)
-                  </Text>
-                </View>
-              )}
-
-              {validationResults.rows.length > 0 && (
-                <View
-                  style={{
-                    backgroundColor: "#f8fafc",
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 12,
-                  }}
-                >
-                  <Text style={{ fontWeight: "600", marginBottom: 8 }}>
-                    Preview (first 3):
-                  </Text>
-                  {validationResults.rows.slice(0, 3).map((row, index) => (
-                    <Text key={index} style={{ fontSize: 12, marginBottom: 4 }}>
-                      {row.student_id}: {row.first_name} {row.last_name} (Grade{" "}
-                      {row.grade_level})
-                      {row.parent_email && ` - Parent: ${row.parent_email}`}
-                    </Text>
-                  ))}
-                  {validationResults.rows.length > 3 && (
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontStyle: "italic",
-                        color: "#666",
-                      }}
-                    >
-                      ...and {validationResults.rows.length - 3} more
-                    </Text>
-                  )}
-                </View>
-              )}
-            </View>
-
-            {/* Action Buttons */}
-            <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+              {/* Upload Button */}
               <Pressable
-                onPress={resetValidation}
+                onPress={handleFileUpload}
                 style={{
-                  flex: 1,
-                  backgroundColor: "#6b7280",
-                  paddingVertical: 12,
-                  borderRadius: 8,
+                  padding: 18,
+                  backgroundColor: "#2196F3",
+                  borderRadius: 12,
+                  shadowColor: "#2196F3",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 4,
+                  marginBottom: 16,
+                  flexDirection: "row",
+                  justifyContent: "center",
                   alignItems: "center",
                 }}
               >
-                <Text style={{ color: "white", fontWeight: "600" }}>
-                  📁 Choose Different File
+                <Text
+                  style={{
+                    color: "white",
+                    textAlign: "center",
+                    fontWeight: "700",
+                    fontSize: 16,
+                    marginLeft: 8,
+                  }}
+                >
+                  📁 Select CSV File
                 </Text>
               </Pressable>
 
-              {validationResults.errors.length === 0 && (
+              {/* Tips Card */}
+              <View
+                style={{
+                  backgroundColor: "#e3f2fd",
+                  borderRadius: 12,
+                  padding: 16,
+                  borderLeftWidth: 3,
+                  borderLeftColor: "#2196f3",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#1976d2",
+                    marginBottom: 8,
+                  }}
+                >
+                  💡 Helpful Tips
+                </Text>
+                
+                <View style={{ gap: 4 }}>
+                  <Text style={{ color: "#1565c0", fontSize: 12, lineHeight: 16 }}>
+                    • Column names are case-insensitive and flexible
+                  </Text>
+                  <Text style={{ color: "#1565c0", fontSize: 12, lineHeight: 16 }}>
+                    • Extra columns will be ignored (no need to remove them)
+                  </Text>
+                  <Text style={{ color: "#1565c0", fontSize: 12, lineHeight: 16 }}>
+                    • Empty rows will be skipped automatically
+                  </Text>
+                  <Text style={{ color: "#1565c0", fontSize: 12, lineHeight: 16 }}>
+                    • File will be validated before any uploads begin
+                  </Text>
+                </View>
+              </View>
+            </>
+          ) : (
+            <>
+              {/* Validation Results */}
+              <View
+                style={{
+                  backgroundColor: "white",
+                  borderRadius: 16,
+                  padding: 20,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 8,
+                  elevation: 4,
+                  marginBottom: 16,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: "#212529",
+                    marginBottom: 12,
+                  }}
+                >
+                  Validation Results
+                </Text>
+
+                {validationResults.errors.length > 0 ? (
+                  <View
+                    style={{
+                      backgroundColor: "#fef2f2",
+                      borderRadius: 12,
+                      padding: 16,
+                      marginBottom: 12,
+                      borderLeftWidth: 3,
+                      borderLeftColor: "#dc2626",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#dc2626",
+                        fontWeight: "600",
+                        marginBottom: 8,
+                        fontSize: 14,
+                      }}
+                    >
+                      ❌ Found {validationResults.errors.length} Error(s):
+                    </Text>
+                    {validationResults.errors.map((error, index) => (
+                      <Text
+                        key={index}
+                        style={{
+                          color: "#dc2626",
+                          fontSize: 12,
+                          marginBottom: 4,
+                          lineHeight: 16,
+                        }}
+                      >
+                        • {error}
+                      </Text>
+                    ))}
+                  </View>
+                ) : (
+                  <View
+                    style={{
+                      backgroundColor: "#f0fdf4",
+                      borderRadius: 12,
+                      padding: 16,
+                      marginBottom: 12,
+                      borderLeftWidth: 3,
+                      borderLeftColor: "#16a34a",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#16a34a",
+                        fontWeight: "600",
+                        fontSize: 14,
+                      }}
+                    >
+                      ✅ Validation Successful! Found{" "}
+                      {validationResults.rows.length} valid student(s)
+                    </Text>
+                  </View>
+                )}
+
+                {validationResults.rows.length > 0 && (
+                  <View
+                    style={{
+                      backgroundColor: "#f8fafc",
+                      borderRadius: 12,
+                      padding: 16,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontWeight: "600",
+                        marginBottom: 8,
+                        color: "#212529",
+                        fontSize: 14,
+                      }}
+                    >
+                      Preview (first 3):
+                    </Text>
+                    {validationResults.rows.slice(0, 3).map((row, index) => (
+                      <Text
+                        key={index}
+                        style={{
+                          fontSize: 12,
+                          marginBottom: 4,
+                          color: "#6c757d",
+                          lineHeight: 16,
+                        }}
+                      >
+                        {row.student_id}: {row.first_name} {row.last_name}{" "}
+                        (Grade {row.grade_level})
+                      </Text>
+                    ))}
+                    {validationResults.rows.length > 3 && (
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontStyle: "italic",
+                          color: "#6c757d",
+                        }}
+                      >
+                        ...and {validationResults.rows.length - 3} more
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+
+              {/* Action Buttons */}
+              <View style={{ flexDirection: "row", gap: 12 }}>
                 <Pressable
-                  onPress={uploadToDatabase}
-                  disabled={uploading}
+                  onPress={resetValidation}
                   style={{
                     flex: 1,
-                    backgroundColor: uploading ? "#9ca3af" : "#16a34a",
-                    paddingVertical: 12,
-                    borderRadius: 8,
+                    backgroundColor: "#6b7280",
+                    paddingVertical: 16,
+                    borderRadius: 12,
                     alignItems: "center",
                   }}
                 >
-                  <Text style={{ color: "white", fontWeight: "600" }}>
-                    {uploading ? "⏳ Uploading..." : "🚀 Upload to Database"}
+                  <Text
+                    style={{ color: "white", fontWeight: "600", fontSize: 14 }}
+                  >
+                    📁 Choose Different File
                   </Text>
                 </Pressable>
-              )}
-            </View>
-          </>
-        )}
-      </ScrollView>
+
+                {validationResults.errors.length === 0 && (
+                  <Pressable
+                    onPress={uploadToDatabase}
+                    disabled={uploading}
+                    style={{
+                      flex: 1,
+                      backgroundColor: uploading ? "#9ca3af" : "#16a34a",
+                      paddingVertical: 16,
+                      borderRadius: 12,
+                      alignItems: "center",
+                      shadowColor: uploading ? "transparent" : "#16a34a",
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 8,
+                      elevation: uploading ? 0 : 4,
+                    }}
+                  >
+                    {uploading ? (
+                      <ActivityIndicator color="white" size="small" />
+                    ) : (
+                      <Text
+                        style={{
+                          color: "white",
+                          fontWeight: "600",
+                          fontSize: 14,
+                        }}
+                      >
+                        🚀 Upload to Database
+                      </Text>
+                    )}
+                  </Pressable>
+                )}
+              </View>
+            </>
+          )}
+        </View>
+      </View>
     </Modal>
   );
 }
