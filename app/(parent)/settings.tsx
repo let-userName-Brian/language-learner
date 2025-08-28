@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { showErrorAlert, showSuccessAlert } from "../../components/ShowAlert";
+import { showErrorBanner, showSuccessBanner } from "../../components/ShowAlert";
 import { supabase } from "../../services/supabase-init";
 
 interface ParentProfile {
@@ -96,9 +96,9 @@ export default function ParentSettings() {
 
       // Update local state
       setProfile((prev) => ({ ...prev, display_name }));
-      showSuccessAlert("Profile updated successfully!");
+      showSuccessBanner("Profile updated successfully!");
     } catch (error: any) {
-      showErrorAlert(error.message || "Failed to update profile");
+      showErrorBanner(error.message || "Failed to update profile");
     } finally {
       setSaving(false);
     }
@@ -353,8 +353,9 @@ export default function ParentSettings() {
         />
       </View>
 
-      {/* Info Cards */}
+      {/* Info Cards - Compact version */}
       <View style={{ gap: 12, marginBottom: 20 }}>
+        {/* Parent Access Card */}
         <View
           style={{
             backgroundColor: "#fff",
@@ -365,19 +366,54 @@ export default function ParentSettings() {
             shadowOpacity: 0.1,
             shadowRadius: 4,
             elevation: 3,
+            borderLeftWidth: 4,
+            borderLeftColor: "#10B981",
           }}
         >
-          <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
-            About Parent Access
-          </Text>
-          <Text style={{ fontSize: 14, color: "#666", lineHeight: 20 }}>
-            As a parent, you can view your children's progress, see which
-            lessons they've completed, and track their learning journey. If you
-            need to link additional children to your account, please contact
-            your child's teacher.
-          </Text>
+          <View 
+            style={{ 
+              flexDirection: "row", 
+              alignItems: "center"
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                backgroundColor: "#10B981",
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+              }}
+            >
+              <Text style={{ fontSize: 16, color: "white" }}>👁️</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text 
+                style={{ 
+                  fontSize: 16, 
+                  fontWeight: "700", 
+                  color: "#1f2937",
+                  marginBottom: 2
+                }}
+              >
+                Parent Access
+              </Text>
+              <Text 
+                style={{ 
+                  fontSize: 13, 
+                  color: "#6b7280", 
+                  lineHeight: 18
+                }}
+              >
+                View your children's progress and learning journey.
+              </Text>
+            </View>
+          </View>
         </View>
 
+        {/* Support Card */}
         <View
           style={{
             backgroundColor: "#fff",
@@ -388,16 +424,51 @@ export default function ParentSettings() {
             shadowOpacity: 0.1,
             shadowRadius: 4,
             elevation: 3,
+            borderLeftWidth: 4,
+            borderLeftColor: "#3B82F6",
           }}
         >
-          <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
-            Support
-          </Text>
-          <Text style={{ fontSize: 14, color: "#666", lineHeight: 20 }}>
-            If you have questions about your child's progress or need help with
-            the app, please reach out to your child's teacher or school
-            administrator.
-          </Text>
+          <View 
+            style={{ 
+              flexDirection: "row", 
+              alignItems: "center"
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                backgroundColor: "#3B82F6",
+                borderRadius: 16,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+              }}
+            >
+              <Text style={{ fontSize: 16, color: "white" }}>💬</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text 
+                style={{ 
+                  fontSize: 16, 
+                  fontWeight: "700", 
+                  color: "#1f2937",
+                  marginBottom: 2
+                }}
+              >
+                Need Help?
+              </Text>
+              <Text 
+                style={{ 
+                  fontSize: 13, 
+                  color: "#6b7280", 
+                  lineHeight: 18
+                }}
+              >
+                Contact your child's teacher or school administrator.
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -543,16 +614,16 @@ export default function ParentSettings() {
                   await saveProfile();
                   setShowEditModal(false);
                 }}
-                disabled={saving}
+                disabled={saving || (profile.first_name.trim().length === 0 || profile.last_name.trim().length === 0)}
                 style={{
                   padding: 16,
-                  backgroundColor: !saving ? "#FF6B35" : "#e9ecef",
+                  backgroundColor: (!saving && profile.first_name.trim().length > 0 && profile.last_name.trim().length > 0) ? "#FF6B35" : "#e9ecef",
                   borderRadius: 12,
-                  shadowColor: !saving ? "#FF6B35" : "transparent",
+                  shadowColor: (!saving && profile.first_name.trim().length > 0 && profile.last_name.trim().length > 0) ? "#FF6B35" : "transparent",
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
-                  elevation: 4,
+                  elevation: (!saving && profile.first_name.trim().length > 0 && profile.last_name.trim().length > 0) ? 4 : 0,
                   alignItems: "center",
                 }}
               >
@@ -560,7 +631,7 @@ export default function ParentSettings() {
                   style={{
                     fontSize: 16,
                     fontWeight: "600",
-                    color: "#ffffff",
+                    color: (!saving && profile.first_name.trim().length > 0 && profile.last_name.trim().length > 0) ? "#ffffff" : "#6c757d",
                   }}
                 >
                   {saving ? "Updating Name..." : "Update Name"}
