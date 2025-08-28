@@ -1,3 +1,5 @@
+import { AchievementBadge } from "@/components/AchievementBadge";
+import { CircularProgress } from "@/components/CircularProgress";
 import { ParentHomeSkeleton } from "@/components/ParentSkeletonHome";
 import ParentStudentDetailModal from "@/components/ParentStudentDetailModal";
 import { PullToRefresh } from "@/components/PullToRefresh";
@@ -20,114 +22,6 @@ interface StudentProgress {
     completed_at: string;
   }[];
 }
-
-// New Achievement Badge Component
-const AchievementBadge = ({ 
-  icon, 
-  label, 
-  color = "#2196F3",
-  achieved = false 
-}: {
-  icon: string;
-  label: string;
-  color?: string;
-  achieved?: boolean;
-}) => (
-  <View style={{
-    alignItems: 'center',
-    marginHorizontal: 8,
-    opacity: achieved ? 1 : 0.3,
-  }}>
-    <View style={{
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: achieved ? color : '#e9ecef',
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 4,
-    }}>
-      <Ionicons 
-        name={icon as any} 
-        size={20} 
-        color={achieved ? '#fff' : '#6c757d'} 
-      />
-    </View>
-    <Text style={{
-      fontSize: 10,
-      color: achieved ? color : '#6c757d',
-      fontWeight: '600',
-      textAlign: 'center',
-    }}>
-      {label}
-    </Text>
-  </View>
-);
-
-// Circular Progress Component
-const CircularProgress = ({ 
-  percentage, 
-  size = 80, 
-  strokeWidth = 8,
-  color = "#2196F3" 
-}: {
-  percentage: number;
-  size?: number;
-  strokeWidth?: number;
-  color?: string;
-}) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const strokeDasharray = circumference;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
-
-  return (
-    <View style={{ width: size, height: size, position: 'relative' }}>
-      <View style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        borderWidth: strokeWidth,
-        borderColor: '#e9ecef',
-      }} />
-      <View style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        borderWidth: strokeWidth,
-        borderColor: color,
-        borderTopColor: 'transparent',
-        borderRightColor: percentage > 25 ? color : 'transparent',
-        borderBottomColor: percentage > 50 ? color : 'transparent',
-        borderLeftColor: percentage > 75 ? color : 'transparent',
-        transform: [{ rotate: `${(percentage / 100) * 360 - 90}deg` }],
-      }} />
-      <View style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        width: size,
-        height: size,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}>
-        <Text style={{
-          fontSize: size * 0.2,
-          fontWeight: '700',
-          color: color,
-        }}>
-          {percentage}%
-        </Text>
-      </View>
-    </View>
-  );
-};
 
 export default function ParentHome() {
   const [children, setChildren] = useState<StudentProgress[]>([]);
@@ -264,26 +158,68 @@ export default function ParentHome() {
 
   const getTotalStats = () => {
     const totalStudents = children.length;
-    const totalCompleted = children.reduce((sum, child) => sum + child.completed_lessons, 0);
-    const totalLessons = children.reduce((sum, child) => sum + child.total_lessons, 0);
-    const avgProgress = totalLessons > 0 ? Math.round((totalCompleted / totalLessons) * 100) : 0;
-    const recentlyActive = children.filter(child => 
-      child.recent_activity.length > 0 && 
-      new Date(child.recent_activity[0].completed_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const totalCompleted = children.reduce(
+      (sum, child) => sum + child.completed_lessons,
+      0
+    );
+    const totalLessons = children.reduce(
+      (sum, child) => sum + child.total_lessons,
+      0
+    );
+    const avgProgress =
+      totalLessons > 0 ? Math.round((totalCompleted / totalLessons) * 100) : 0;
+    const recentlyActive = children.filter(
+      (child) =>
+        child.recent_activity.length > 0 &&
+        new Date(child.recent_activity[0].completed_at) >
+          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     ).length;
 
     return { totalStudents, totalCompleted, avgProgress, recentlyActive };
   };
 
   const getAchievements = (child: StudentProgress) => {
-    const percentage = getProgressPercentage(child.completed_lessons, child.total_lessons);
+    const percentage = getProgressPercentage(
+      child.completed_lessons,
+      child.total_lessons
+    );
     return [
-      { icon: "star", label: "First Lesson", achieved: child.completed_lessons >= 1, color: "#FFD700" },
-      { icon: "flame", label: "5 Lessons", achieved: child.completed_lessons >= 5, color: "#FF6B35" },
-      { icon: "trophy", label: "10 Lessons", achieved: child.completed_lessons >= 10, color: "#4ECDC4" },
-      { icon: "medal", label: "25% Complete", achieved: percentage >= 25, color: "#45B7D1" },
-      { icon: "diamond", label: "50% Complete", achieved: percentage >= 50, color: "#96CEB4" },
-      { icon: "ribbon", label: "Completed!", achieved: percentage === 100, color: "#FFEAA7" },
+      {
+        icon: "star",
+        label: "First Lesson",
+        achieved: child.completed_lessons >= 1,
+        color: "#FFD700",
+      },
+      {
+        icon: "flame",
+        label: "5 Lessons",
+        achieved: child.completed_lessons >= 5,
+        color: "#FF6B35",
+      },
+      {
+        icon: "trophy",
+        label: "10 Lessons",
+        achieved: child.completed_lessons >= 10,
+        color: "#4ECDC4",
+      },
+      {
+        icon: "medal",
+        label: "25% Complete",
+        achieved: percentage >= 25,
+        color: "#45B7D1",
+      },
+      {
+        icon: "diamond",
+        label: "50% Complete",
+        achieved: percentage >= 50,
+        color: "#96CEB4",
+      },
+      {
+        icon: "ribbon",
+        label: "Completed!",
+        achieved: percentage === 100,
+        color: "#FFEAA7",
+      },
     ];
   };
 
@@ -299,78 +235,98 @@ export default function ParentHome() {
     >
       <ScrollView style={{ flex: 1 }}>
         {/* Header with Gradient */}
-        <View style={{
-          backgroundColor: '#667eea', // Fallback for React Native
-          paddingTop: 20,
-          paddingBottom: 30,
-          paddingHorizontal: 16,
-        }}>
-          <Text style={{
-            fontSize: 32,
-            fontWeight: '800',
-            color: '#fff',
-            marginBottom: 8,
-          }}>
+        <View
+          style={{
+            backgroundColor: "#667eea", // Fallback for React Native
+            paddingTop: 20,
+            paddingBottom: 30,
+            paddingHorizontal: 16,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 32,
+              fontWeight: "800",
+              color: "#fff",
+              marginBottom: 8,
+            }}
+          >
             Family Dashboard
           </Text>
-          <Text style={{
-            fontSize: 16,
-            color: 'rgba(255,255,255,0.9)',
-            marginBottom: 20,
-          }}>
+          <Text
+            style={{
+              fontSize: 16,
+              color: "rgba(255,255,255,0.9)",
+              marginBottom: 20,
+            }}
+          >
             Track your children's learning journey
           </Text>
 
           {/* Stats Cards */}
-          <View style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            marginBottom: 10,
-          }}>
-            <View style={{
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              borderRadius: 12,
-              padding: 16,
-              flex: 1,
-              marginRight: 8,
-              alignItems: 'center',
-            }}>
-              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                borderRadius: 12,
+                padding: 16,
+                flex: 1,
+                marginRight: 8,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>
                 {stats.totalStudents}
               </Text>
-              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12 }}>
+              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 12 }}>
                 Children
               </Text>
             </View>
-            
-            <View style={{
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              borderRadius: 12,
-              padding: 16,
-              flex: 1,
-              marginHorizontal: 4,
-              alignItems: 'center',
-            }}>
-              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
+
+            <View
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                borderRadius: 12,
+                padding: 16,
+                flex: 1,
+                marginHorizontal: 4,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>
                 {stats.avgProgress}%
               </Text>
-              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12 }}>
+              <Text style={{ color: "rgba(255,255,255,0.9)", fontSize: 12 }}>
                 Avg Progress
               </Text>
             </View>
 
-            <View style={{
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              borderRadius: 12,
-              padding: 16,
-              flex: 1,
-              marginLeft: 8,
-              alignItems: 'center',
-            }}>
-              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
+            <View
+              style={{
+                backgroundColor: "rgba(255,255,255,0.2)",
+                borderRadius: 12,
+                padding: 16,
+                flex: 1,
+                marginLeft: 8,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>
                 {stats.recentlyActive}
               </Text>
-              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: "center" }}>
+              <Text
+                style={{
+                  color: "rgba(255,255,255,0.9)",
+                  fontSize: 12,
+                  textAlign: "center",
+                }}
+              >
                 Active This Week
               </Text>
             </View>
@@ -381,18 +337,21 @@ export default function ParentHome() {
         <View style={{ padding: 16, paddingTop: 0, marginTop: -20 }}>
           {children.map((child) => {
             const achievements = getAchievements(child);
-            const progressPercentage = getProgressPercentage(child.completed_lessons, child.total_lessons);
-            
+            const progressPercentage = getProgressPercentage(
+              child.completed_lessons,
+              child.total_lessons
+            );
+
             return (
               <Pressable
                 key={child.user_id}
                 onPress={() => handleStudentPress(child)}
                 style={{
-                  backgroundColor: '#fff',
+                  backgroundColor: "#fff",
                   borderRadius: 20,
                   padding: 24,
                   marginBottom: 20,
-                  shadowColor: '#000',
+                  shadowColor: "#000",
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.1,
                   shadowRadius: 12,
@@ -401,51 +360,67 @@ export default function ParentHome() {
                 android_ripple={{ color: "#e3f2fd" }}
               >
                 {/* Student Header with Circular Progress */}
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  marginBottom: 20,
-                }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 20,
+                  }}
+                >
                   <View style={{ flex: 1 }}>
-                    <Text style={{
-                      fontSize: 22,
-                      fontWeight: '800',
-                      color: '#2c3e50',
-                      marginBottom: 4,
-                    }}>
+                    <Text
+                      style={{
+                        fontSize: 22,
+                        fontWeight: "800",
+                        color: "#2c3e50",
+                        marginBottom: 4,
+                      }}
+                    >
                       {child.display_name}
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
+                    >
                       <Ionicons name="school" size={14} color="#6c757d" />
-                      <Text style={{
-                        color: '#6c757d',
-                        fontSize: 14,
-                        marginLeft: 4,
-                      }}>
+                      <Text
+                        style={{
+                          color: "#6c757d",
+                          fontSize: 14,
+                          marginLeft: 4,
+                        }}
+                      >
                         ID: {child.student_id} • Grade {child.grade_level}
                       </Text>
                     </View>
                   </View>
-                  
-                  <CircularProgress 
+
+                  <CircularProgress
                     percentage={progressPercentage}
                     size={70}
-                    color={progressPercentage >= 75 ? "#4CAF50" : progressPercentage >= 50 ? "#FF9800" : "#2196F3"}
+                    color={
+                      progressPercentage >= 75
+                        ? "#4CAF50"
+                        : progressPercentage >= 50
+                        ? "#FF9800"
+                        : "#2196F3"
+                    }
                   />
                 </View>
 
                 {/* Achievement Badges */}
                 <View style={{ marginBottom: 20 }}>
-                  <Text style={{
-                    fontSize: 16,
-                    fontWeight: '600',
-                    color: '#2c3e50',
-                    marginBottom: 12,
-                  }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: "#2c3e50",
+                      marginBottom: 12,
+                    }}
+                  >
                     Achievements
                   </Text>
-                  <ScrollView 
-                    horizontal 
+                  <ScrollView
+                    horizontal
                     showsHorizontalScrollIndicator={false}
                     style={{ marginHorizontal: -8 }}
                   >
@@ -462,143 +437,185 @@ export default function ParentHome() {
                 </View>
 
                 {/* Progress Stats */}
-                <View style={{
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: 12,
-                  padding: 16,
-                  marginBottom: 16,
-                }}>
-                  <View style={{
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    marginBottom: 8,
-                  }}>
-                    <Text style={{
-                      fontSize: 14,
-                      fontWeight: '600',
-                      color: '#2c3e50',
-                    }}>
+                <View
+                  style={{
+                    backgroundColor: "#f8f9fa",
+                    borderRadius: 12,
+                    padding: 16,
+                    marginBottom: 16,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: "#2c3e50",
+                      }}
+                    >
                       Learning Progress
                     </Text>
-                    <Text style={{
-                      fontSize: 14,
-                      fontWeight: '600',
-                      color: '#2196F3',
-                    }}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: "#2196F3",
+                      }}
+                    >
                       {child.completed_lessons} / {child.total_lessons} lessons
                     </Text>
                   </View>
-                  
-                  <View style={{
-                    height: 8,
-                    backgroundColor: '#e9ecef',
-                    borderRadius: 4,
-                    overflow: 'hidden',
-                  }}>
-                    <View style={{
-                      height: '100%',
-                      width: `${progressPercentage}%`,
-                      backgroundColor: progressPercentage >= 75 ? "#4CAF50" : progressPercentage >= 50 ? "#FF9800" : "#2196F3",
+
+                  <View
+                    style={{
+                      height: 8,
+                      backgroundColor: "#e9ecef",
                       borderRadius: 4,
-                    }} />
+                      overflow: "hidden",
+                    }}
+                  >
+                    <View
+                      style={{
+                        height: "100%",
+                        width: `${progressPercentage}%`,
+                        backgroundColor:
+                          progressPercentage >= 75
+                            ? "#4CAF50"
+                            : progressPercentage >= 50
+                            ? "#FF9800"
+                            : "#2196F3",
+                        borderRadius: 4,
+                      }}
+                    />
                   </View>
                 </View>
 
                 {/* Recent Activity Timeline */}
                 {child.recent_activity.length > 0 ? (
                   <View>
-                    <Text style={{
-                      fontSize: 16,
-                      fontWeight: '600',
-                      color: '#2c3e50',
-                      marginBottom: 12,
-                    }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: "#2c3e50",
+                        marginBottom: 12,
+                      }}
+                    >
                       Recent Activity
                     </Text>
-                    {child.recent_activity.slice(0, 3).map((activity, index) => (
-                      <View
-                        key={index}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          paddingVertical: 12,
-                          paddingHorizontal: 16,
-                          backgroundColor: index === 0 ? '#e8f5e8' : '#f8f9fa',
-                          borderRadius: 10,
-                          marginBottom: 8,
-                          borderLeftWidth: 4,
-                          borderLeftColor: index === 0 ? '#4CAF50' : '#2196F3',
-                        }}
-                      >
-                        <View style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 4,
-                          backgroundColor: index === 0 ? '#4CAF50' : '#2196F3',
-                          marginRight: 12,
-                        }} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={{
-                            fontSize: 14,
-                            fontWeight: '600',
-                            color: '#2c3e50',
-                            marginBottom: 2,
-                          }}>
-                            {activity.lesson_title}
-                          </Text>
-                          <Text style={{
-                            fontSize: 12,
-                            color: '#6c757d',
-                          }}>
-                            Completed {formatDate(activity.completed_at)}
-                          </Text>
+                    {child.recent_activity
+                      .slice(0, 3)
+                      .map((activity, index) => (
+                        <View
+                          key={index}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            paddingVertical: 12,
+                            paddingHorizontal: 16,
+                            backgroundColor:
+                              index === 0 ? "#e8f5e8" : "#f8f9fa",
+                            borderRadius: 10,
+                            marginBottom: 8,
+                            borderLeftWidth: 4,
+                            borderLeftColor:
+                              index === 0 ? "#4CAF50" : "#2196F3",
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor:
+                                index === 0 ? "#4CAF50" : "#2196F3",
+                              marginRight: 12,
+                            }}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                fontSize: 14,
+                                fontWeight: "600",
+                                color: "#2c3e50",
+                                marginBottom: 2,
+                              }}
+                            >
+                              {activity.lesson_title}
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                color: "#6c757d",
+                              }}
+                            >
+                              Completed {formatDate(activity.completed_at)}
+                            </Text>
+                          </View>
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={20}
+                            color={index === 0 ? "#4CAF50" : "#2196F3"}
+                          />
                         </View>
-                        <Ionicons 
-                          name="checkmark-circle" 
-                          size={20} 
-                          color={index === 0 ? '#4CAF50' : '#2196F3'} 
-                        />
-                      </View>
-                    ))}
+                      ))}
                   </View>
                 ) : (
-                  <View style={{
-                    backgroundColor: '#fff3cd',
-                    borderRadius: 10,
-                    padding: 16,
-                    alignItems: 'center',
-                    borderLeftWidth: 4,
-                    borderLeftColor: '#ffc107',
-                  }}>
+                  <View
+                    style={{
+                      backgroundColor: "#fff3cd",
+                      borderRadius: 10,
+                      padding: 16,
+                      alignItems: "center",
+                      borderLeftWidth: 4,
+                      borderLeftColor: "#ffc107",
+                    }}
+                  >
                     <Ionicons name="time-outline" size={24} color="#856404" />
-                    <Text style={{
-                      fontSize: 14,
-                      color: '#856404',
-                      fontWeight: '500',
-                      marginTop: 8,
-                    }}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        color: "#856404",
+                        fontWeight: "500",
+                        marginTop: 8,
+                      }}
+                    >
                       Waiting for first lesson completion
                     </Text>
                   </View>
                 )}
 
                 {/* Call to Action */}
-                <View style={{
-                  marginTop: 16,
-                  paddingTop: 16,
-                  borderTopWidth: 1,
-                  borderTopColor: '#e9ecef',
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <Ionicons name="information-circle-outline" size={16} color="#007bff" />
-                  <Text style={{
-                    fontSize: 12,
-                    color: '#007bff',
-                    fontWeight: '600',
-                    marginLeft: 6,
-                  }}>
+                <View
+                  style={{
+                    marginTop: 16,
+                    paddingTop: 16,
+                    borderTopWidth: 1,
+                    borderTopColor: "#e9ecef",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons
+                    name="information-circle-outline"
+                    size={16}
+                    color="#007bff"
+                  />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: "#007bff",
+                      fontWeight: "600",
+                      marginLeft: 6,
+                    }}
+                  >
                     Tap for teacher info & helpful hints
                   </Text>
                 </View>

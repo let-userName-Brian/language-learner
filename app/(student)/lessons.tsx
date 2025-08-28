@@ -1,15 +1,11 @@
+import { CircularProgress } from "@/components/CircularProgress";
 import { ErrorPages } from "@/components/ErrorPage";
 import { LessonSkeleton } from "@/components/LessonSkeleton";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { Ionicons } from "@expo/vector-icons";
 import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import {
-  Animated,
-  Pressable,
-  ScrollView,
-  Text,
-  View
-} from "react-native";
+import { Animated, Pressable, ScrollView, Text, View } from "react-native";
 import { supabase } from "../../services/supabase-init";
 
 type LessonUnit = {
@@ -202,15 +198,15 @@ export default function Lessons() {
   const getSectionIcon = (type: string) => {
     switch (type) {
       case "vocab":
-        return "📚";
+        return "book-outline";
       case "sentence":
-        return "📝";
+        return "create-outline";
       case "picture-match":
-        return "🖼️";
+        return "image-outline";
       case "tile-build":
-        return "🧩";
+        return "grid-outline";
       default:
-        return "📄";
+        return "document-outline";
     }
   };
 
@@ -231,304 +227,378 @@ export default function Lessons() {
 
   const getUnitColor = (unitIndex: number) => {
     const colors = [
-      "#4CAF50", // Green - Unit 1
-      "#2196F3", // Blue - Unit 2
-      "#FF9800", // Orange - Unit 3
-      "#9C27B0", // Purple - Unit 4
-      "#F44336", // Red - Unit 5
-      "#00BCD4", // Cyan - Unit 6
-      "#FF5722", // Deep Orange - Unit 7
-      "#3F51B5", // Indigo - Unit 8
-      "#795548", // Brown - Unit 9
-      "#607D8B", // Blue Grey - Unit 10
+      "#4CAF50",
+      "#2196F3",
+      "#FF9800",
+      "#9C27B0",
+      "#F44336",
+      "#00BCD4",
+      "#FF5722",
+      "#3F51B5",
+      "#795548",
+      "#607D8B",
     ];
-    return colors[unitIndex % 10]; // Cycle every 10 units
+    return colors[unitIndex % 10];
+  };
+
+  const getUnitLightColor = (unitIndex: number) => {
+    const lightColors = [
+      "#66BB6A",
+      "#42A5F5",
+      "#FFB74D",
+      "#BA68C8",
+      "#EF5350",
+      "#26C6DA",
+      "#FF7043",
+      "#5C6BC0",
+      "#8D6E63",
+      "#78909C",
+    ];
+    return lightColors[unitIndex % 10];
   };
 
   const getUnitIcon = (unitIndex: number) => {
     const icons = [
-      "🌱", // Unit 1 - Growth/Beginning
-      "⭐", // Unit 2 - Star/Achievement
-      "🚀", // Unit 3 - Rocket/Progress
-      "🎯", // Unit 4 - Target/Goals
-      "💎", // Unit 5 - Diamond/Mastery
-      "🔥", // Unit 6 - Fire/Energy
-      "⚡", // Unit 7 - Lightning/Power
-      "🌟", // Unit 8 - Shining Star
-      "🏆", // Unit 9 - Trophy/Victory
-      "👑", // Unit 10 - Crown/Excellence
+      "star",
+      "rocket",
+      "trophy",
+      "diamond",
+      "flame",
+      "flash",
+      "heart",
+      "medal",
+      "ribbon",
+      "shield",
     ];
-    return icons[unitIndex % 10]; // Cycle every 10 units
+    return icons[unitIndex % 10];
   };
 
   if (loading) {
     return (
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-        {/* Header Skeleton */}
-        <View style={{ marginBottom: 20 }}>
+      <View style={{ flex: 1, backgroundColor: "#f8fafc" }}>
+        {/* Compact Header Skeleton */}
+        <View
+          style={{
+            height: 120,
+            backgroundColor: "#667eea",
+            position: "relative",
+          }}
+        >
           <View
             style={{
-              height: 16,
-              backgroundColor: "#e9ecef",
-              borderRadius: 8,
-              width: "40%",
-              marginBottom: 8,
+              position: "absolute",
+              bottom: 16,
+              left: 20,
+              right: 20,
             }}
-          />
-          <View
-            style={{
-              height: 24,
-              backgroundColor: "#e9ecef",
-              borderRadius: 12,
-              width: "60%",
-            }}
-          />
+          >
+            <View
+              style={{
+                height: 12,
+                backgroundColor: "rgba(255,255,255,0.3)",
+                borderRadius: 6,
+                width: "30%",
+                marginBottom: 4,
+              }}
+            />
+            <View
+              style={{
+                height: 16,
+                backgroundColor: "rgba(255,255,255,0.4)",
+                borderRadius: 8,
+                width: "50%",
+                marginBottom: 4,
+              }}
+            />
+            <View
+              style={{
+                height: 10,
+                backgroundColor: "rgba(255,255,255,0.3)",
+                borderRadius: 5,
+                width: "40%",
+              }}
+            />
+          </View>
         </View>
-        {[1, 2, 3, 4, 5, 6, 7].map((index) => (
-          <LessonSkeleton key={index} />
-        ))}
-      </ScrollView>
+
+        <ScrollView
+          style={{ flex: 1, paddingTop: 16 }}
+          contentContainerStyle={{ padding: 16 }}
+        >
+          {[1, 2, 3, 4, 5, 6, 7].map((index) => (
+            <LessonSkeleton key={index} />
+          ))}
+        </ScrollView>
+      </View>
     );
   }
 
   if (err) return ErrorPages.LessonNotFound();
 
+  const handleRefresh = async () => {
+    await loadLessonsAsUnits();
+  };
+
+  // Calculate overall progress
+  const totalSections = lessonUnits.reduce(
+    (sum, unit) => sum + unit.progress.total,
+    0
+  );
+  const completedSections = lessonUnits.reduce(
+    (sum, unit) => sum + unit.progress.completed,
+    0
+  );
+  const overallProgress =
+    totalSections > 0 ? (completedSections / totalSections) * 100 : 0;
+
   return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-      {/* Enhanced Header with School Name and Course Title */}
-      <View style={{ marginBottom: 20 }}>
-        {schoolName && (
-          <Text style={{ fontSize: 16, color: "#6c757d", fontWeight: "500" }}>
-            {schoolName}
-          </Text>
-        )}
-        <Text
+    <View style={{ flex: 1, backgroundColor: "#f8fafc" }}>
+      {/* Compact Enhanced Header */}
+      <View
+        style={{
+          height: 100,
+          backgroundColor: "#667eea",
+          position: "relative",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+          marginBottom: 16,
+        }}
+      >
+        {/* Subtle overlay for depth */}
+        <View
           style={{
-            fontSize: 24,
-            fontWeight: "700",
-            color: "#212529",
-            marginTop: 4,
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(118, 75, 162, 0.3)",
+          }}
+        />
+
+        <View
+          style={{
+            position: "absolute",
+            bottom: 16,
+            left: 20,
+            right: 20,
           }}
         >
-          {courseTitle || "Your Lessons"}
-        </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              {schoolName && (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.8)",
+                    fontWeight: "500",
+                    marginBottom: 2,
+                  }}
+                >
+                  {schoolName}
+                </Text>
+              )}
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "800",
+                  color: "white",
+                  marginBottom: 4,
+                }}
+              >
+                {courseTitle || "Your Lessons"}
+              </Text>
+              <Text
+                style={{
+                  color: "rgba(255,255,255,0.9)",
+                  fontSize: 12,
+                  fontWeight: "500",
+                }}
+              >
+                {completedSections} of {totalSections} sections complete
+              </Text>
+            </View>
+
+            {/* Compact Progress Circle */}
+            <CircularProgress
+              percentage={overallProgress}
+              size={58}
+              strokeWidth={6}
+              color="white"
+              backgroundColor="rgba(255,255,255,0.3)"
+            />
+          </View>
+        </View>
       </View>
 
-      {lessonUnits.map((lessonUnit, index) => {
-        const isExpanded = expandedLessons.has(lessonUnit.lesson_id);
+      <PullToRefresh onRefresh={handleRefresh}>
+        <ScrollView
+          style={{ flex: 1, marginTop: -12 }}
+          contentContainerStyle={{
+            padding: 16,
+            paddingTop: 16,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {lessonUnits.map((lessonUnit, index) => {
+            const isExpanded = expandedLessons.has(lessonUnit.lesson_id);
+            const unitColor = getUnitColor(index);
+            const unitLightColor = getUnitLightColor(index);
+            const progressPercentage =
+              lessonUnit.progress.total > 0
+                ? (lessonUnit.progress.completed / lessonUnit.progress.total) *
+                  100
+                : 0;
 
-        if (!rotationValues[lessonUnit.lesson_id]) {
-          rotationValues[lessonUnit.lesson_id] = new Animated.Value(
-            isExpanded ? 1 : 0
-          );
-        }
+            if (!rotationValues[lessonUnit.lesson_id]) {
+              rotationValues[lessonUnit.lesson_id] = new Animated.Value(
+                isExpanded ? 1 : 0
+              );
+            }
 
-        const rotateInterpolate = rotationValues[
-          lessonUnit.lesson_id
-        ].interpolate({
-          inputRange: [0, 1],
-          outputRange: ["0deg", "180deg"],
-        });
+            const rotateInterpolate = rotationValues[
+              lessonUnit.lesson_id
+            ].interpolate({
+              inputRange: [0, 1],
+              outputRange: ["0deg", "180deg"],
+            });
 
-        return (
-          <View key={lessonUnit.lesson_id} style={{ marginBottom: 16 }}>
-            {/* Lesson Header */}
-            <Pressable
-              onPress={() => toggleLesson(lessonUnit.lesson_id)}
-              style={{
-                backgroundColor: "#fff",
-                padding: 16,
-                borderRadius: isExpanded ? 12 : 12,
-                borderBottomLeftRadius: isExpanded ? 4 : 12,
-                borderBottomRightRadius: isExpanded ? 4 : 12,
-                borderWidth: 1,
-                borderColor: "#e9ecef",
-                shadowColor: getUnitColor(index),
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.15,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <View
+            return (
+              <View key={lessonUnit.lesson_id} style={{ marginBottom: 16 }}>
+                {/* Enhanced Lesson Header */}
+                <Pressable
+                  onPress={() => toggleLesson(lessonUnit.lesson_id)}
                   style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    flex: 1,
-                    gap: 12,
+                    backgroundColor: "white",
+                    borderRadius: 16,
+                    borderBottomLeftRadius: isExpanded ? 4 : 16,
+                    borderBottomRightRadius: isExpanded ? 4 : 16,
+                    shadowColor: unitColor,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.15,
+                    shadowRadius: 8,
+                    elevation: 4,
+                    overflow: "hidden",
                   }}
                 >
+                  {/*  Bar at Top */}
                   <View
                     style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
-                      backgroundColor: getUnitColor(index),
-                      justifyContent: "center",
-                      alignItems: "center",
-                      shadowColor: getUnitColor(index),
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 4,
-                      elevation: 2,
+                      height: 4,
+                      backgroundColor: "#f1f5f9",
+                      width: "100%",
                     }}
                   >
-                    <Text style={{ fontSize: 24 }}>{getUnitIcon(index)}</Text>
+                    <View
+                      style={{
+                        height: "100%",
+                        width: `100%`,
+                        backgroundColor: unitColor,
+                      }}
+                    />
                   </View>
 
-                  <View style={{ flex: 1 }}>
-                    {/* Unit Context - Small Gray */}
-                    <Text
+                  <View style={{ padding: 20 }}>
+                    <View
                       style={{
-                        fontSize: 12,
-                        color: "#6c757d",
-                        fontWeight: "500",
-                        marginBottom: 2,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
                       }}
                     >
-                      {lessonUnit.unit_title}
-                    </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          flex: 1,
+                          gap: 16,
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          {/* Unit Context */}
+                          <View
+                            style={{
+                              backgroundColor: `${unitColor}15`,
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                              borderRadius: 8,
+                              alignSelf: "flex-start",
+                              marginBottom: 4,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: unitColor,
+                                fontWeight: "700",
+                                textTransform: "uppercase",
+                                letterSpacing: 0.5,
+                              }}
+                            >
+                              {lessonUnit.unit_title}
+                            </Text>
+                          </View>
 
-                    {/* Lesson Title - Bold and Prominent */}
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "700",
-                        color: "#212529",
-                        marginBottom: 4,
-                      }}
-                    >
-                      {lessonUnit.lesson_title}
-                    </Text>
+                          {/* Lesson Title */}
+                          <Text
+                            style={{
+                              fontSize: 20,
+                              fontWeight: "800",
+                              color: "#1e293b",
+                            }}
+                          >
+                            {lessonUnit.lesson_title}
+                          </Text>
 
-                    {/* Progress - Small Gray */}
-                    <Text style={{ fontSize: 14, color: "#6c757d" }}>
-                      {lessonUnit.progress.completed} of{" "}
-                      {lessonUnit.progress.total} sections completed
-                    </Text>
-                  </View>
-                </View>
+                          {/* Progress Text */}
 
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 12,
-                  }}
-                >
-                  {/* Completion Badge */}
-                  <View
-                    style={{
-                      backgroundColor:
-                        lessonUnit.progress.completed ===
-                        lessonUnit.progress.total
-                          ? getUnitColor(index)
-                          : "#e9ecef",
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 12,
-                      minWidth: 50,
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: "bold",
-                        color:
-                          lessonUnit.progress.completed ===
-                          lessonUnit.progress.total
-                            ? "white"
-                            : "#6c757d",
-                      }}
-                    >
-                      {lessonUnit.progress.completed ===
-                      lessonUnit.progress.total
-                        ? "✓ Done"
-                        : `${Math.round(
-                            (lessonUnit.progress.completed /
-                              lessonUnit.progress.total) *
-                              100
-                          )}%`}
-                    </Text>
-                  </View>
+                          <View
+                            style={{ alignItems: "flex-start", width: "100%" }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 14,
+                                color: "#64748b",
+                                fontWeight: "600",
+                                marginBottom: 4,
+                              }}
+                            >
+                              {lessonUnit.progress.completed} of{" "}
+                              {lessonUnit.progress.total}
+                            </Text>
 
-                  {/* Animated Caret */}
-                  <View
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 16,
-                      backgroundColor: `${getUnitColor(index)}15`,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      borderWidth: 1,
-                      borderColor: `${getUnitColor(index)}40`,
-                    }}
-                  >
-                    <Animated.View
-                      style={{ transform: [{ rotate: rotateInterpolate }] }}
-                    >
-                      <Ionicons
-                        name="chevron-down"
-                        size={16}
-                        color={getUnitColor(index)}
-                      />
-                    </Animated.View>
-                  </View>
-                </View>
-              </View>
-            </Pressable>
+                            {/* Line Progress Bar */}
+                            <View
+                              style={{
+                                width: 80,
+                                height: 6,
+                                backgroundColor: "#f1f5f9",
+                                borderRadius: 3,
+                                overflow: "hidden",
+                              }}
+                            >
+                              <View
+                                style={{
+                                  height: "100%",
+                                  width: `${progressPercentage}%`,
+                                  backgroundColor: unitColor,
+                                  borderRadius: 3,
+                                }}
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      </View>
 
-            {/* Connected Dropdown Sections */}
-            {isExpanded && (
-              <View
-                style={{
-                  backgroundColor: "#f8f9fa",
-                  borderWidth: 1,
-                  borderColor: "#e9ecef",
-                  borderTopWidth: 0,
-                  borderBottomLeftRadius: 12,
-                  borderBottomRightRadius: 12,
-                  padding: 8,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  elevation: 2,
-                }}
-              >
-                {lessonUnit.sections.map((section, sectionIndex) => (
-                  <Link
-                    key={section.type}
-                    href={`/lesson/section?id=${lessonUnit.lesson_id}&type=${section.type}&from=lessons`}
-                    asChild
-                  >
-                    <Pressable
-                      style={{
-                        backgroundColor: "#fff",
-                        padding: 16,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: section.completed ? "#4CAF50" : "#e9ecef",
-                        marginBottom:
-                          sectionIndex === lessonUnit.sections.length - 1
-                            ? 0
-                            : 8,
-                        shadowColor: "#000",
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.05,
-                        shadowRadius: 2,
-                        elevation: 1,
-                      }}
-                    >
                       <View
                         style={{
                           flexDirection: "row",
@@ -536,76 +606,207 @@ export default function Lessons() {
                           gap: 12,
                         }}
                       >
-                        {/* Section Icon */}
+                        {/* Animated Expand Button */}
                         <View
                           style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: 16,
-                            backgroundColor: section.completed
-                              ? "#4CAF50"
-                              : "#9E9E9E",
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: `${unitColor}10`,
                             justifyContent: "center",
                             alignItems: "center",
+                            borderWidth: 2,
+                            borderColor: `${unitColor}30`,
                           }}
                         >
-                          <Text style={{ fontSize: 16 }}>
-                            {getSectionIcon(section.type)}
-                          </Text>
-                        </View>
-
-                        {/* Section Info */}
-                        <View style={{ flex: 1 }}>
-                          <Text
+                          <Animated.View
                             style={{
-                              fontSize: 16,
-                              fontWeight: "600",
-                              color: "#212529",
+                              transform: [{ rotate: rotateInterpolate }],
                             }}
                           >
-                            {getSectionName(section.type)}
-                          </Text>
-                          <Text style={{ fontSize: 14, color: "#6c757d" }}>
-                            {section.count} items
-                          </Text>
-                        </View>
-
-                        {/* Status */}
-                        <View style={{ alignItems: "center" }}>
-                          {section.completed ? (
-                            <View
-                              style={{
-                                backgroundColor: "#e8f5e8",
-                                paddingHorizontal: 8,
-                                paddingVertical: 4,
-                                borderRadius: 12,
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: "600",
-                                  color: "#4CAF50",
-                                }}
-                              >
-                                DONE
-                              </Text>
-                            </View>
-                          ) : (
-                            <Text style={{ color: "#999", fontSize: 16 }}>
-                              →
-                            </Text>
-                          )}
+                            <Ionicons
+                              name="chevron-down"
+                              size={20}
+                              color={unitColor}
+                            />
+                          </Animated.View>
                         </View>
                       </View>
-                    </Pressable>
-                  </Link>
-                ))}
+                    </View>
+                  </View>
+                </Pressable>
+
+                {/* Enhanced Expanded Sections */}
+                {isExpanded && (
+                  <View
+                    style={{
+                      backgroundColor: "white",
+                      borderTopWidth: 0,
+                      borderBottomLeftRadius: 16,
+                      borderBottomRightRadius: 16,
+                      shadowColor: unitColor,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.1,
+                      shadowRadius: 8,
+                      elevation: 2,
+                      overflow: "hidden",
+                    }}
+                  >
+                    {/* Connecting Line */}
+                    <View
+                      style={{
+                        height: 2,
+                        backgroundColor: `${unitColor}20`,
+                        marginHorizontal: 20,
+                      }}
+                    />
+
+                    <View style={{ padding: 16 }}>
+                      {lessonUnit.sections.map((section, sectionIndex) => (
+                        <Link
+                          key={section.type}
+                          href={`/lesson/section?id=${lessonUnit.lesson_id}&type=${section.type}&from=lessons`}
+                          asChild
+                        >
+                          <Pressable
+                            style={{
+                              backgroundColor: section.completed
+                                ? `${unitColor}08`
+                                : "#f8fafc",
+                              padding: 16,
+                              borderRadius: 12,
+                              borderWidth: 2,
+                              borderColor: section.completed
+                                ? `${unitColor}40`
+                                : "#e2e8f0",
+                              marginBottom:
+                                sectionIndex === lessonUnit.sections.length - 1
+                                  ? 0
+                                  : 12,
+                              shadowColor: section.completed
+                                ? unitColor
+                                : "#000",
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: section.completed ? 0.1 : 0.05,
+                              shadowRadius: 4,
+                              elevation: 2,
+                            }}
+                          >
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 16,
+                              }}
+                            >
+                              {/* Section Icon */}
+                              <View
+                                style={{
+                                  width: 44,
+                                  height: 44,
+                                  borderRadius: 22,
+                                  backgroundColor: section.completed
+                                    ? unitColor
+                                    : "#94a3b8",
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                  shadowColor: section.completed
+                                    ? unitColor
+                                    : "#000",
+                                  shadowOffset: { width: 0, height: 2 },
+                                  shadowOpacity: 0.2,
+                                  shadowRadius: 4,
+                                  elevation: 2,
+                                }}
+                              >
+                                <Ionicons
+                                  name={getSectionIcon(section.type) as any}
+                                  size={22}
+                                  color="white"
+                                />
+                              </View>
+
+                              {/* Section Info */}
+                              <View style={{ flex: 1 }}>
+                                <Text
+                                  style={{
+                                    fontSize: 18,
+                                    fontWeight: "700",
+                                    color: "#1e293b",
+                                    marginBottom: 2,
+                                  }}
+                                >
+                                  {getSectionName(section.type)}
+                                </Text>
+                                <Text
+                                  style={{
+                                    fontSize: 14,
+                                    color: "#64748b",
+                                    fontWeight: "500",
+                                  }}
+                                >
+                                  {section.count} items
+                                </Text>
+                              </View>
+
+                              {/* Status */}
+                              <View style={{ alignItems: "center" }}>
+                                {section.completed ? (
+                                  <View
+                                    style={{
+                                      backgroundColor: `${unitColor}20`,
+                                      paddingHorizontal: 12,
+                                      paddingVertical: 6,
+                                      borderRadius: 16,
+                                      borderWidth: 1,
+                                      borderColor: `${unitColor}40`,
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 12,
+                                        fontWeight: "800",
+                                        color: unitColor,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 0.5,
+                                      }}
+                                    >
+                                      ✓ Done
+                                    </Text>
+                                  </View>
+                                ) : (
+                                  <View
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: 16,
+                                      backgroundColor: "#f1f5f9",
+                                      justifyContent: "center",
+                                      alignItems: "center",
+                                      borderWidth: 2,
+                                      borderColor: "#e2e8f0",
+                                    }}
+                                  >
+                                    <Ionicons
+                                      name="chevron-forward"
+                                      size={16}
+                                      color="#64748b"
+                                    />
+                                  </View>
+                                )}
+                              </View>
+                            </View>
+                          </Pressable>
+                        </Link>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </View>
-            )}
-          </View>
-        );
-      })}
-    </ScrollView>
+            );
+          })}
+        </ScrollView>
+      </PullToRefresh>
+    </View>
   );
 }

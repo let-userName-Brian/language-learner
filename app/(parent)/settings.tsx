@@ -1,5 +1,7 @@
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { SettingsSkeleton } from "@/components/SettingsSkeleton";
-import { useEffect, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useCallback, useEffect, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -28,6 +30,7 @@ export default function ParentSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -65,7 +68,12 @@ export default function ParentSettings() {
           display_name: String(profileData.display_name || ""),
           first_name: String(profileData.first_name || ""),
           last_name: String(profileData.last_name || ""),
-          school_name: profileData.schools?.[0]?.name || undefined,
+          school_name:
+            profileData?.schools &&
+            typeof profileData.schools === "object" &&
+            "name" in profileData.schools
+              ? (profileData.schools.name as string)
+              : "",
         });
       }
     } catch (error) {
@@ -74,6 +82,12 @@ export default function ParentSettings() {
       setLoading(false);
     }
   };
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadProfile();
+    setRefreshing(false);
+  }, []);
 
   const saveProfile = async () => {
     try {
@@ -111,384 +125,460 @@ export default function ParentSettings() {
   if (loading) return <SettingsSkeleton />;
 
   return (
-    <ScrollView style={{ flex: 1, padding: 16 }}>
-      {/* Parent ID Card */}
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      refreshing={refreshing}
+      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
+    >
+      {/* Header with Gradient */}
       <View
         style={{
-          backgroundColor: "#fff",
-          borderRadius: 20,
-          padding: 24,
-          marginBottom: 20,
-          borderWidth: 2,
-          borderColor: "#FF6B35",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          elevation: 8,
-          position: "relative",
-          overflow: "hidden",
+          backgroundColor: "#FF6B35", // Orange gradient for parent theme
+          paddingTop: 20,
+          paddingBottom: 30,
+          paddingHorizontal: 16,
         }}
       >
-        {/* School Badge Header */}
-        <View
+        <Text
           style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 60,
-            backgroundColor: "#FF6B35",
-            borderTopLeftRadius: 18,
-            borderTopRightRadius: 18,
-          }}
-        />
-
-        {/* Edit Button */}
-        <Pressable
-          onPress={() => setShowEditModal(true)}
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            backgroundColor: "#ffffff",
-            borderRadius: 18,
-            width: 36,
-            height: 36,
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#FF6B35",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.2,
-            shadowRadius: 8,
-            elevation: 5,
-            zIndex: 999,
-            borderWidth: 1.5,
-            borderColor: "#FF6B35",
+            fontSize: 32,
+            fontWeight: "800",
+            color: "#fff",
+            marginBottom: 8,
           }}
         >
-          <Text
-            style={{
-              fontSize: 14,
-              color: "#FF6B35",
-              fontWeight: "600",
-              lineHeight: 14,
-            }}
-          >
-            ✎
-          </Text>
-        </Pressable>
-
-        {/* School Name Banner */}
-        <View
+          Parent Profile
+        </Text>
+        <Text
           style={{
-            alignItems: "center",
+            fontSize: 16,
+            color: "rgba(255,255,255,0.9)",
             marginBottom: 20,
           }}
         >
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "bold",
-              color: "white",
-              textAlign: "center",
-            }}
-          >
-            {profile.school_name || "School Name"}
-          </Text>
-        </View>
+          Manage your account and view children's progress
+        </Text>
 
-        {/* Parent Info Section */}
-        <View style={{ alignItems: "center", marginBottom: 20 }}>
-          {/* Avatar */}
+        {/* Quick Stats */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginBottom: 10,
+          }}
+        >
           <View
             style={{
-              width: 100,
-              height: 100,
-              borderRadius: 50,
-              backgroundColor: "#fff4f1",
+              backgroundColor: "rgba(255,255,255,0.2)",
+              borderRadius: 12,
+              padding: 16,
+              flex: 1,
+              marginRight: 8,
               alignItems: "center",
-              justifyContent: "center",
-              borderWidth: 4,
-              borderColor: "#fff",
-              marginBottom: 16,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 4,
             }}
           >
-            <Text style={{ fontSize: 48 }}>👨‍👩‍👧‍👦</Text>
+            <Ionicons
+              name="people"
+              size={24}
+              color="#fff"
+              style={{ marginBottom: 8 }}
+            />
+            <Text style={{ color: "#fff", fontSize: 12, textAlign: "center" }}>
+              Parent Account
+            </Text>
           </View>
 
-          {/* Parent Name */}
-          <Text
-            style={{
-              fontSize: 22,
-              fontWeight: "bold",
-              color: "#1e293b",
-              textAlign: "center",
-              marginBottom: 8,
-            }}
-          >
-            {profile.display_name || "Parent"}
-          </Text>
-
-          {/* Parent Badge */}
           <View
             style={{
-              backgroundColor: "#10B981",
-              paddingHorizontal: 16,
-              paddingVertical: 6,
+              backgroundColor: "rgba(255,255,255,0.2)",
+              borderRadius: 12,
+              padding: 16,
+              flex: 1,
+              marginHorizontal: 4,
+              alignItems: "center",
+            }}
+          >
+            <Ionicons
+              name="school"
+              size={24}
+              color="#fff"
+              style={{ marginBottom: 8 }}
+            />
+            <Text style={{ color: "#fff", fontSize: 12, textAlign: "center" }}>
+              {profile.school_name || "School"}
+            </Text>
+          </View>
+
+          <View
+            style={{
+              backgroundColor: "rgba(255,255,255,0.2)",
+              borderRadius: 12,
+              padding: 16,
+              flex: 1,
+              marginLeft: 8,
+              alignItems: "center",
+            }}
+          >
+            <Ionicons
+              name="shield-checkmark"
+              size={24}
+              color="#fff"
+              style={{ marginBottom: 8 }}
+            />
+            <Text style={{ color: "#fff", fontSize: 12, textAlign: "center" }}>
+              Verified
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Main Content */}
+      <View style={{ flex: 1, paddingTop: 0, marginTop: -20 }}>
+        {/* Parent ID Card */}
+        <View
+          style={{
+            backgroundColor: "#fff",
+            borderRadius: 20,
+            padding: 24,
+            marginHorizontal: 16,
+            marginBottom: 20,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 6,
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          {/* Edit Button */}
+          <Pressable
+            onPress={() => setShowEditModal(true)}
+            style={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              backgroundColor: "#FF6B35",
               borderRadius: 20,
+              width: 40,
+              height: 40,
+              alignItems: "center",
+              justifyContent: "center",
+              shadowColor: "#FF6B35",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 6,
+              zIndex: 999,
+            }}
+          >
+            <Ionicons name="pencil" size={20} color="#fff" />
+          </Pressable>
+
+          {/* School Header Banner */}
+          <View
+            style={{
+              marginBottom: 24,
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: "#f8f9fa",
+                borderRadius: 12,
+                paddingHorizontal: 20,
+                paddingVertical: 8,
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: "#FF6B35",
+                  textAlign: "center",
+                }}
+              >
+                {profile.school_name || "School Name"}
+              </Text>
+            </View>
+          </View>
+
+          {/* Parent Profile Section */}
+          <View style={{ alignItems: "center", marginBottom: 24 }}>
+            {/* Avatar with Status Ring */}
+            <View
+              style={{
+                position: "relative",
+                marginBottom: 16,
+              }}
+            >
+              <View
+                style={{
+                  width: 120,
+                  height: 120,
+                  borderRadius: 60,
+                  backgroundColor: "#fff5f5",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 4,
+                  borderColor: "#FF6B35",
+                  shadowColor: "#FF6B35",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 8,
+                  elevation: 6,
+                }}
+              >
+                <Ionicons name="people" size={60} color="#FF6B35" />
+              </View>
+
+              {/* Online Status */}
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: 8,
+                  right: 8,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: "#4CAF50",
+                  borderWidth: 3,
+                  borderColor: "#fff",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="checkmark" size={12} color="#fff" />
+              </View>
+            </View>
+
+            {/* Parent Name */}
+            <Text
+              style={{
+                fontSize: 24,
+                fontWeight: "800",
+                color: "#2c3e50",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              {profile.display_name || "Parent"}
+            </Text>
+
+            {/* Role Badge */}
+            <View
+              style={{
+                backgroundColor: "#FF6B35",
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+                borderRadius: 20,
+                marginBottom: 16,
+                shadowColor: "#FF6B35",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#fff",
+                  fontWeight: "700",
+                  fontSize: 16,
+                  textAlign: "center",
+                }}
+              >
+                Parent Account
+              </Text>
+            </View>
+          </View>
+
+          {/* Parent Email Section */}
+          <View
+            style={{
+              backgroundColor: "#f8f9fa",
+              borderRadius: 16,
+              padding: 20,
+              borderLeftWidth: 4,
+              borderLeftColor: "#FF6B35",
               marginBottom: 16,
             }}
           >
-            <Text
+            <View
               style={{
-                color: "white",
-                fontWeight: "bold",
-                fontSize: 14,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
-              PARENT
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: "#6c757d",
+                    marginBottom: 4,
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                  }}
+                >
+                  Email Address
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "700",
+                    color: "#2c3e50",
+                  }}
+                >
+                  {email || "No email"}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  width: 60,
+                  height: 60,
+                  backgroundColor: "#FF6B35",
+                  borderRadius: 12,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  shadowColor: "#FF6B35",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+              >
+                <Ionicons name="mail" size={30} color="#fff" />
+              </View>
+            </View>
+          </View>
+
+          {/* Parent Access Info */}
+          <View
+            style={{
+              backgroundColor: "#e3f2fd",
+              borderRadius: 12,
+              padding: 16,
+              borderLeftWidth: 4,
+              borderLeftColor: "#2196F3",
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 8,
+              }}
+            >
+              <Ionicons name="eye-outline" size={16} color="#2196F3" />
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "600",
+                  color: "#2196F3",
+                  marginLeft: 8,
+                }}
+              >
+                Parent Dashboard Access
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 16,
+                color: "#2c3e50",
+                lineHeight: 24,
+              }}
+            >
+              You can view your children's learning progress, achievements, and detailed lesson completion data. Stay connected with their educational journey.
             </Text>
           </View>
         </View>
 
-        {/* Parent ID Section */}
+        {/* Account Actions */}
         <View
           style={{
-            backgroundColor: "#f8fafc",
-            borderRadius: 12,
-            padding: 16,
-            borderWidth: 1,
-            borderColor: "#e2e8f0",
+            backgroundColor: "#fff",
+            borderRadius: 20,
+            padding: 20,
+            marginHorizontal: 16,
+            marginBottom: 20,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 6,
           }}
         >
           <View
             style={{
               flexDirection: "row",
-              justifyContent: "space-between",
               alignItems: "center",
-            }}
-          >
-            <View>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontWeight: "600",
-                  color: "#64748b",
-                  marginBottom: 4,
-                }}
-              >
-                PARENT ID
-              </Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "bold",
-                  color: "#1e293b",
-                  fontFamily: "monospace",
-                }}
-              >
-                {email?.split("@")[0]?.toUpperCase() || "PARENT"}
-              </Text>
-            </View>
-
-            {/* Family Icon */}
-            <View
-              style={{
-                width: 50,
-                height: 50,
-                backgroundColor: "#FF6B35",
-                borderRadius: 8,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  backgroundColor: "#fff",
-                  borderRadius: 4,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Text
-                  style={{ fontSize: 20, fontWeight: "bold", color: "#FF6B35" }}
-                >
-                  ♥
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Decorative Elements */}
-        <View
-          style={{
-            position: "absolute",
-            top: 80,
-            left: -10,
-            width: 30,
-            height: 30,
-            borderRadius: 15,
-            backgroundColor: "rgba(255, 107, 53, 0.1)",
-          }}
-        />
-        <View
-          style={{
-            position: "absolute",
-            top: 120,
-            right: -15,
-            width: 40,
-            height: 40,
-            borderRadius: 20,
-            backgroundColor: "rgba(16, 185, 129, 0.1)",
-          }}
-        />
-      </View>
-
-      {/* Info Cards - Compact version */}
-      <View style={{ gap: 12, marginBottom: 20 }}>
-        {/* Parent Access Card */}
-        <View
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: 12,
-            padding: 16,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-            borderLeftWidth: 4,
-            borderLeftColor: "#10B981",
-          }}
-        >
-          <View 
-            style={{ 
-              flexDirection: "row", 
-              alignItems: "center"
+              marginBottom: 16,
             }}
           >
             <View
               style={{
-                width: 32,
-                height: 32,
-                backgroundColor: "#10B981",
-                borderRadius: 16,
-                alignItems: "center",
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: "#fff3cd",
                 justifyContent: "center",
+                alignItems: "center",
                 marginRight: 12,
               }}
             >
-              <Text style={{ fontSize: 16, color: "white" }}>👁️</Text>
+              <Ionicons name="settings" size={24} color="#f59e0b" />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text 
-                style={{ 
-                  fontSize: 16, 
-                  fontWeight: "700", 
-                  color: "#1f2937",
-                  marginBottom: 2
-                }}
-              >
-                Parent Access
-              </Text>
-              <Text 
-                style={{ 
-                  fontSize: 13, 
-                  color: "#6b7280", 
-                  lineHeight: 18
-                }}
-              >
-                View your children's progress and learning journey.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Support Card */}
-        <View
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: 12,
-            padding: 16,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-            borderLeftWidth: 4,
-            borderLeftColor: "#3B82F6",
-          }}
-        >
-          <View 
-            style={{ 
-              flexDirection: "row", 
-              alignItems: "center"
-            }}
-          >
-            <View
+            <Text
               style={{
-                width: 32,
-                height: 32,
-                backgroundColor: "#3B82F6",
-                borderRadius: 16,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 12,
+                fontSize: 20,
+                fontWeight: "800",
+                color: "#2c3e50",
               }}
             >
-              <Text style={{ fontSize: 16, color: "white" }}>💬</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text 
-                style={{ 
-                  fontSize: 16, 
-                  fontWeight: "700", 
-                  color: "#1f2937",
-                  marginBottom: 2
-                }}
-              >
-                Need Help?
-              </Text>
-              <Text 
-                style={{ 
-                  fontSize: 13, 
-                  color: "#6b7280", 
-                  lineHeight: 18
-                }}
-              >
-                Contact your child's teacher or school administrator.
-              </Text>
-            </View>
+              Account Actions
+            </Text>
           </View>
+
+          <Pressable
+            onPress={signOut}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+              backgroundColor: "#fff5f5",
+              borderRadius: 12,
+              borderWidth: 2,
+              borderColor: "#ffdddd",
+              shadowColor: "#dc3545",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+          >
+            <Ionicons
+              name="log-out"
+              size={20}
+              color="#dc3545"
+              style={{ marginRight: 8 }}
+            />
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "700",
+                color: "#dc3545",
+              }}
+            >
+              Sign Out
+            </Text>
+          </Pressable>
         </View>
       </View>
-
-      {/* Sign Out Button */}
-      <Pressable
-        onPress={signOut}
-        style={{
-          padding: 16,
-          backgroundColor: "#fff5f5",
-          borderRadius: 12,
-          borderWidth: 1,
-          borderColor: "#ffdddd",
-          marginBottom: 32,
-          alignItems: "center",
-        }}
-      >
-        <Text style={{ fontSize: 16, fontWeight: "600", color: "#d32f2f" }}>
-          Sign Out
-        </Text>
-      </Pressable>
 
       {/* Edit Profile Modal */}
       <Modal
@@ -500,61 +590,59 @@ export default function ParentSettings() {
           {/* Header */}
           <View
             style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: 20,
-              backgroundColor: "#ffffff",
-              borderBottomWidth: 1,
-              borderBottomColor: "#e9ecef",
+              backgroundColor: "#FF6B35",
+              paddingTop: 20,
+              paddingBottom: 20,
+              paddingHorizontal: 20,
             }}
           >
-            <Pressable onPress={() => setShowEditModal(false)}>
-              <Text
-                style={{ fontSize: 16, color: "#6c757d", fontWeight: "500" }}
-              >
-                Cancel
-              </Text>
-            </Pressable>
-            <Text style={{ fontSize: 18, fontWeight: "700", color: "#212529" }}>
-              Edit Name
-            </Text>
-            <View style={{ width: 50 }} />
-          </View>
-
-          {/* Content */}
-          <View style={{ flex: 1, padding: 16, justifyContent: "center" }}>
             <View
               style={{
-                backgroundColor: "white",
-                borderRadius: 16,
-                padding: 24,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 4,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
+              <Pressable onPress={() => setShowEditModal(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </Pressable>
               <Text
                 style={{
-                  fontSize: 18,
-                  fontWeight: "600",
-                  color: "#212529",
-                  marginBottom: 20,
-                  textAlign: "center",
+                  fontSize: 20,
+                  fontWeight: "700",
+                  color: "#fff",
                 }}
               >
-                Update Your Name
+                Edit Profile
               </Text>
+              <View style={{ width: 24 }} />
+            </View>
+          </View>
 
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 16 }}
+          >
+            {/* Form Fields */}
+            <View
+              style={{
+                backgroundColor: "#fff",
+                borderRadius: 20,
+                padding: 24,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.1,
+                shadowRadius: 12,
+                elevation: 6,
+              }}
+            >
               {/* First Name */}
-              <View style={{ marginBottom: 16 }}>
+              <View style={{ marginBottom: 20 }}>
                 <Text
                   style={{
                     fontSize: 16,
-                    fontWeight: "600",
-                    color: "#212529",
+                    fontWeight: "700",
+                    color: "#2c3e50",
                     marginBottom: 8,
                   }}
                 >
@@ -565,9 +653,10 @@ export default function ParentSettings() {
                     borderWidth: 2,
                     borderColor: profile.first_name ? "#FF6B35" : "#e9ecef",
                     borderRadius: 12,
-                    padding: 14,
+                    padding: 16,
                     fontSize: 16,
                     backgroundColor: "#f8f9fa",
+                    fontWeight: "500",
                   }}
                   value={profile.first_name || ""}
                   onChangeText={(text) =>
@@ -583,8 +672,8 @@ export default function ParentSettings() {
                 <Text
                   style={{
                     fontSize: 16,
-                    fontWeight: "600",
-                    color: "#212529",
+                    fontWeight: "700",
+                    color: "#2c3e50",
                     marginBottom: 8,
                   }}
                 >
@@ -595,9 +684,10 @@ export default function ParentSettings() {
                     borderWidth: 2,
                     borderColor: profile.last_name ? "#FF6B35" : "#e9ecef",
                     borderRadius: 12,
-                    padding: 14,
+                    padding: 16,
                     fontSize: 16,
                     backgroundColor: "#f8f9fa",
+                    fontWeight: "500",
                   }}
                   value={profile.last_name || ""}
                   onChangeText={(text) =>
@@ -614,33 +704,41 @@ export default function ParentSettings() {
                   await saveProfile();
                   setShowEditModal(false);
                 }}
-                disabled={saving || (profile.first_name.trim().length === 0 || profile.last_name.trim().length === 0)}
+                disabled={saving}
                 style={{
-                  padding: 16,
-                  backgroundColor: (!saving && profile.first_name.trim().length > 0 && profile.last_name.trim().length > 0) ? "#FF6B35" : "#e9ecef",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 18,
+                  backgroundColor: !saving ? "#FF6B35" : "#e9ecef",
                   borderRadius: 12,
-                  shadowColor: (!saving && profile.first_name.trim().length > 0 && profile.last_name.trim().length > 0) ? "#FF6B35" : "transparent",
+                  shadowColor: !saving ? "#FF6B35" : "transparent",
                   shadowOffset: { width: 0, height: 4 },
                   shadowOpacity: 0.3,
                   shadowRadius: 8,
-                  elevation: (!saving && profile.first_name.trim().length > 0 && profile.last_name.trim().length > 0) ? 4 : 0,
-                  alignItems: "center",
+                  elevation: 6,
                 }}
               >
+                <Ionicons
+                  name={saving ? "hourglass" : "checkmark-circle"}
+                  size={20}
+                  color="#fff"
+                  style={{ marginRight: 8 }}
+                />
                 <Text
                   style={{
                     fontSize: 16,
-                    fontWeight: "600",
-                    color: (!saving && profile.first_name.trim().length > 0 && profile.last_name.trim().length > 0) ? "#ffffff" : "#6c757d",
+                    fontWeight: "700",
+                    color: "#fff",
                   }}
                 >
-                  {saving ? "Updating Name..." : "Update Name"}
+                  {saving ? "Updating Profile..." : "Update Profile"}
                 </Text>
               </Pressable>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
-    </ScrollView>
+    </PullToRefresh>
   );
 }

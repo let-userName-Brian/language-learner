@@ -1,7 +1,10 @@
+import { CircularProgress } from "@/components/CircularProgress";
 import { HelloWave } from "@/components/HelloWave";
+import { PerformanceBadge } from "@/components/PerformanceBadge";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { SkeletonBox } from "@/components/SkeletonBox";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { supabase } from "../../services/supabase-init";
 
@@ -28,12 +31,19 @@ interface Analytics {
 export default function TeacherHome() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadAnalytics();
   }, []);
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
@@ -141,8 +151,13 @@ export default function TeacherHome() {
       console.error("Failed to load analytics:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const handleRefresh = useCallback(async () => {
+    await loadAnalytics(true);
+  }, []);
 
   const completionRate =
     analytics && analytics.totalLessons > 0 && analytics.totalStudents > 0
@@ -153,857 +168,606 @@ export default function TeacherHome() {
         )
       : 0;
 
+  const engagementRate = analytics && analytics.totalStudents > 0 
+    ? Math.round((analytics.activeStudents / analytics.totalStudents) * 100)
+    : 0;
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20 }}>
+          <SkeletonBox width="100%" height={200} />
+          <View style={{ height: 20 }} />
+          <SkeletonBox width="100%" height={100} />
+          <View style={{ height: 20 }} />
+          <SkeletonBox width="100%" height={300} />
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
-    <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Welcome Header */}
-        <View style={{ marginBottom: 24 }}>
-          <Text
-            style={{
-              fontSize: 32,
-              fontWeight: "800",
-              color: "#1a1a1a",
-              marginBottom: 8,
-            }}
-          >
-            Welcome back! <HelloWave />
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      refreshing={refreshing}
+      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
+    >
+      <ScrollView style={{ flex: 1 }}>
+        {/* Header with Gradient */}
+        <View style={{
+          backgroundColor: '#7c3aed', // Purple gradient fallback
+          paddingTop: 20,
+          paddingBottom: 30,
+          paddingHorizontal: 16,
+        }}>
+          <Text style={{
+            fontSize: 32,
+            fontWeight: '800',
+            color: '#fff',
+            marginBottom: 8,
+          }}>
+            Teacher Dashboard <HelloWave />
           </Text>
-          <Text
-            style={{
-              fontSize: 16,
-              color: "#666",
-              lineHeight: 22,
-            }}
-          >
-            Here's how your students are progressing
-          </Text>
-        </View>
-
-        {/* Quick Stats Grid */}
-        <View
-          style={{
-            flexDirection: "row",
-            gap: 16,
-            marginBottom: 24,
-            flexWrap: "wrap",
-          }}
-        >
-          {/* Total Students */}
-          <View
-            style={{
-              flex: 1,
-              minWidth: 150,
-              padding: 20,
-              backgroundColor: "#f0f9ff",
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#bae6fd",
-              shadowColor: "#0369a1",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
-          >
-            {loading ? (
-              <>
-                <SkeletonBox width={60} height={32} />
-                <SkeletonBox width={100} height={16} />
-              </>
-            ) : (
-              <>
-                <Text
-                  style={{
-                    fontSize: 32,
-                    fontWeight: "800",
-                    color: "#0369a1",
-                    marginBottom: 4,
-                  }}
-                >
-                  {analytics?.totalStudents || 0}
-                </Text>
-                <Text
-                  style={{
-                    color: "#0284c7",
-                    fontWeight: "600",
-                    fontSize: 14,
-                  }}
-                >
-                  Total Students
-                </Text>
-              </>
-            )}
-          </View>
-
-          {/* Active Students */}
-          <View
-            style={{
-              flex: 1,
-              minWidth: 150,
-              padding: 20,
-              backgroundColor: "#ecfdf5",
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#a7f3d0",
-              shadowColor: "#059669",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
-          >
-            {loading ? (
-              <>
-                <SkeletonBox width={60} height={32} />
-                <SkeletonBox width={110} height={16} />
-              </>
-            ) : (
-              <>
-                <Text
-                  style={{
-                    fontSize: 32,
-                    fontWeight: "800",
-                    color: "#059669",
-                    marginBottom: 4,
-                  }}
-                >
-                  {analytics?.activeStudents || 0}
-                </Text>
-                <Text
-                  style={{
-                    color: "#047857",
-                    fontWeight: "600",
-                    fontSize: 14,
-                  }}
-                >
-                  Active This Week
-                </Text>
-              </>
-            )}
-          </View>
-        </View>
-
-        {/* Progress Overview Card */}
-        <View
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: "#e5e7eb",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 12,
-            elevation: 4,
+          <Text style={{
+            fontSize: 16,
+            color: 'rgba(255,255,255,0.9)',
             marginBottom: 20,
-            overflow: "hidden",
-          }}
-        >
-          <View style={{ padding: 20 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 16,
-              }}
-            >
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: "#fef3c7",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 12,
-                }}
-              >
-                <Text style={{ fontSize: 16 }}>📊</Text>
-              </View>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "700",
-                  color: "#1a1a1a",
-                }}
-              >
-                Class Progress
+          }}>
+            Monitor your class progress and student achievements
+          </Text>
+
+          {/* Stats Cards */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            marginBottom: 10,
+          }}>
+            <View style={{
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderRadius: 12,
+              padding: 16,
+              flex: 1,
+              marginRight: 8,
+              alignItems: 'center',
+            }}>
+              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
+                {analytics?.totalStudents || 0}
+              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center' }}>
+                Total Students
+              </Text>
+            </View>
+            
+            <View style={{
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderRadius: 12,
+              padding: 16,
+              flex: 1,
+              marginHorizontal: 4,
+              alignItems: 'center',
+            }}>
+              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
+                {completionRate}%
+              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center' }}>
+                Completion Rate
               </Text>
             </View>
 
-            {loading ? (
-              <View style={{ gap: 8 }}>
-                <SkeletonBox width="100%" height={16} />
-                <SkeletonBox width="80%" height={16} />
-                <SkeletonBox width="60%" height={16} />
-              </View>
-            ) : (
-              <View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 16,
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontSize: 24,
-                        fontWeight: "700",
-                        color: "#f59e0b",
-                      }}
-                    >
-                      {completionRate}%
-                    </Text>
-                    <Text style={{ fontSize: 14, color: "#666" }}>
-                      Overall Completion Rate
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: 40,
-                      borderWidth: 6,
-                      borderColor: "#fef3c7",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      backgroundColor: "#fffbeb",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 20,
-                        fontWeight: "700",
-                        color: "#f59e0b",
-                      }}
-                    >
-                      {completionRate}%
-                    </Text>
-                  </View>
-                </View>
-
-                <View
-                  style={{
-                    backgroundColor: "#fef3c7",
-                    padding: 12,
-                    borderRadius: 8,
-                  }}
-                >
-                  <Text style={{ fontSize: 14, color: "#92400e" }}>
-                    {analytics?.completedLessons || 0} lessons completed out of{" "}
-                    {analytics?.totalLessons || 0} available
-                  </Text>
-                </View>
-              </View>
-            )}
+            <View style={{
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderRadius: 12,
+              padding: 16,
+              flex: 1,
+              marginLeft: 8,
+              alignItems: 'center',
+            }}>
+              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
+                {engagementRate}%
+              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center' }}>
+                Weekly Active
+              </Text>
+            </View>
           </View>
         </View>
 
-        {/* Top Performers */}
-        {(loading ||
-          (analytics?.topPerformers && analytics.topPerformers.length > 0)) && (
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 12,
-              elevation: 4,
+        {/* Main Content */}
+        <View style={{ padding: 16, paddingTop: 0, marginTop: -20 }}>
+          
+          {/* Performance Overview */}
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 20,
+            padding: 24,
+            marginBottom: 20,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 6,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
               marginBottom: 20,
-              overflow: "hidden",
-            }}
-          >
-            <View style={{ padding: 20 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
+            }}>
+              <View style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: '#fef3c7',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: 12,
+              }}>
+                <Ionicons name="analytics" size={24} color="#f59e0b" />
+              </View>
+              <Text style={{
+                fontSize: 20,
+                fontWeight: '800',
+                color: '#2c3e50',
+              }}>
+                Class Performance Overview
+              </Text>
+            </View>
+
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: '#2c3e50',
+                  marginBottom: 8,
+                }}>
+                  Overall Completion Rate
+                </Text>
+                <Text style={{
+                  fontSize: 14,
+                  color: '#6c757d',
                   marginBottom: 16,
-                }}
-              >
-                <View
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: "#ecfdf5",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 16 }}>🌟</Text>
+                }}>
+                  {analytics?.completedLessons || 0} of {(analytics?.totalStudents || 0) * (analytics?.totalLessons || 0)} total lessons completed
+                </Text>
+                
+                <View style={{
+                  height: 8,
+                  backgroundColor: '#f3f4f6',
+                  borderRadius: 4,
+                  overflow: 'hidden',
+                }}>
+                  <View style={{
+                    height: '100%',
+                    width: `${completionRate}%`,
+                    backgroundColor: completionRate >= 75 ? "#4CAF50" : completionRate >= 50 ? "#FF9800" : "#f59e0b",
+                    borderRadius: 4,
+                  }} />
                 </View>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "700",
-                    color: "#1a1a1a",
-                  }}
-                >
+              </View>
+              
+              <CircularProgress 
+                percentage={completionRate}
+                size={80}
+                color={completionRate >= 75 ? "#4CAF50" : completionRate >= 50 ? "#FF9800" : "#f59e0b"}
+              />
+            </View>
+          </View>
+
+          {/* Performance Metrics */}
+          <View style={{
+            flexDirection: 'row',
+            marginBottom: 20,
+          }}>
+            <PerformanceBadge
+              icon="people"
+              value={analytics?.activeStudents || 0}
+              label="Active This Week"
+              color="#4CAF50"
+              backgroundColor="#f0fdf4"
+            />
+            <PerformanceBadge
+              icon="checkmark-circle"
+              value={analytics?.completedLessons || 0}
+              label="Lessons Completed"
+              color="#2196F3"
+              backgroundColor="#f0f9ff"
+            />
+            <PerformanceBadge
+              icon="school"
+              value={analytics?.totalLessons || 0}
+              label="Total Lessons"
+              color="#9C27B0"
+              backgroundColor="#faf5ff"
+            />
+          </View>
+
+          {/* Top Performers */}
+          {analytics?.topPerformers && analytics.topPerformers.length > 0 && (
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 20,
+              padding: 24,
+              marginBottom: 20,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.1,
+              shadowRadius: 12,
+              elevation: 6,
+            }}>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}>
+                <View style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: '#ecfdf5',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 12,
+                }}>
+                  <Ionicons name="trophy" size={24} color="#059669" />
+                </View>
+                <Text style={{
+                  fontSize: 20,
+                  fontWeight: '800',
+                  color: '#2c3e50',
+                }}>
                   Top Performers
                 </Text>
               </View>
 
-              {loading ? (
-                <View style={{ gap: 12 }}>
-                  {[1, 2, 3].map((i) => (
-                    <View
-                      key={i}
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <SkeletonBox width={120} height={16} />
-                      <SkeletonBox width={60} height={16} />
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <View style={{ gap: 12 }}>
-                  {analytics?.topPerformers
-                    .slice(0, 3)
-                    .map((student, index) => (
-                      <View
-                        key={index}
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: 12,
-                          backgroundColor: "#f0fdf4",
-                          borderRadius: 8,
-                          borderLeftWidth: 4,
-                          borderLeftColor: "#059669",
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            flex: 1,
-                          }}
-                        >
-                          <View
-                            style={{
-                              width: 24,
-                              height: 24,
-                              borderRadius: 12,
-                              backgroundColor: "#059669",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              marginRight: 12,
-                            }}
-                          >
-                            <Text
-                              style={{
-                                color: "white",
-                                fontSize: 12,
-                                fontWeight: "600",
-                              }}
-                            >
-                              {index + 1}
-                            </Text>
-                          </View>
-                          <Text
-                            style={{
-                              fontWeight: "600",
-                              color: "#047857",
-                              flex: 1,
-                            }}
-                          >
-                            {student.student_name}
-                          </Text>
-                        </View>
-                        <View
-                          style={{
-                            backgroundColor: "#059669",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 12,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: "white",
-                              fontSize: 12,
-                              fontWeight: "600",
-                            }}
-                          >
-                            {student.completed_count} lessons
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                </View>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Students Who Need Help */}
-        {(loading ||
-          (analytics?.strugglingStudents &&
-            analytics.strugglingStudents.length > 0)) && (
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 12,
-              elevation: 4,
-              marginBottom: 20,
-              overflow: "hidden",
-            }}
-          >
-            <View style={{ padding: 20 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 16,
-                }}
-              >
+              {analytics.topPerformers.slice(0, 3).map((student, index) => (
                 <View
+                  key={index}
                   style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    backgroundColor: index === 0 ? '#ecfdf5' : '#f8f9fa',
+                    borderRadius: 12,
+                    marginBottom: 12,
+                    borderLeftWidth: 4,
+                    borderLeftColor: index === 0 ? '#10b981' : index === 1 ? '#f59e0b' : '#6b7280',
+                  }}
+                >
+                  <View style={{
                     width: 32,
                     height: 32,
                     borderRadius: 16,
-                    backgroundColor: "#fef2f2",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    backgroundColor: index === 0 ? '#10b981' : index === 1 ? '#f59e0b' : '#6b7280',
+                    justifyContent: 'center',
+                    alignItems: 'center',
                     marginRight: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 16 }}>🎯</Text>
+                  }}>
+                    <Text style={{
+                      color: '#fff',
+                      fontSize: 14,
+                      fontWeight: '700',
+                    }}>
+                      {index + 1}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: '#2c3e50',
+                      marginBottom: 2,
+                    }}>
+                      {student.student_name}
+                    </Text>
+                    <Text style={{
+                      fontSize: 12,
+                      color: '#6c757d',
+                    }}>
+                      {student.completed_count} lessons completed
+                    </Text>
+                  </View>
+                  <Ionicons 
+                    name={index === 0 ? "star" : index === 1 ? "medal" : "ribbon"} 
+                    size={20} 
+                    color={index === 0 ? '#10b981' : index === 1 ? '#f59e0b' : '#6b7280'} 
+                  />
                 </View>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "700",
-                    color: "#1a1a1a",
-                  }}
-                >
+              ))}
+            </View>
+          )}
+
+          {/* Students Who Need Encouragement */}
+          {analytics?.strugglingStudents && analytics.strugglingStudents.length > 0 && (
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 20,
+              padding: 24,
+              marginBottom: 20,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.1,
+              shadowRadius: 12,
+              elevation: 6,
+            }}>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}>
+                <View style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: '#fff3cd',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 12,
+                }}>
+                  <Ionicons name="heart" size={24} color="#f59e0b" />
+                </View>
+                <Text style={{
+                  fontSize: 20,
+                  fontWeight: '800',
+                  color: '#2c3e50',
+                }}>
                   Students Who Need Encouragement
                 </Text>
               </View>
 
-              {loading ? (
-                <View style={{ gap: 12 }}>
-                  {[1, 2, 3].map((i) => (
-                    <View
-                      key={i}
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <SkeletonBox width={120} height={16} />
-                      <SkeletonBox width={60} height={16} />
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <View style={{ gap: 12 }}>
-                  {analytics?.strugglingStudents
-                    .slice(0, 3)
-                    .map((student, index) => (
-                      <View
-                        key={index}
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: 12,
-                          backgroundColor: "#fef2f2",
-                          borderRadius: 8,
-                          borderLeftWidth: 4,
-                          borderLeftColor: "#dc2626",
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            flex: 1,
-                          }}
-                        >
-                          <Ionicons
-                            name="heart"
-                            size={20}
-                            color="#dc2626"
-                            style={{ marginRight: 12 }}
-                          />
-                          <Text
-                            style={{
-                              fontWeight: "600",
-                              color: "#dc2626",
-                              flex: 1,
-                            }}
-                          >
-                            {student.student_name}
-                          </Text>
-                        </View>
-                        <View
-                          style={{
-                            backgroundColor: "#fecaca",
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 12,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: "#dc2626",
-                              fontSize: 12,
-                              fontWeight: "600",
-                            }}
-                          >
-                            {student.completed_count} lessons
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                </View>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Recent Activity */}
-        {(loading ||
-          (analytics?.recentActivity &&
-            analytics.recentActivity.length > 0)) && (
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 12,
-              elevation: 4,
-              marginBottom: 20,
-              overflow: "hidden",
-            }}
-          >
-            <View style={{ padding: 20 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 16,
-                }}
-              >
+              {analytics.strugglingStudents.slice(0, 3).map((student, index) => (
                 <View
+                  key={index}
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: "#f3f4f6",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    backgroundColor: '#fff3cd',
+                    borderRadius: 12,
+                    marginBottom: 12,
+                    borderLeftWidth: 4,
+                    borderLeftColor: '#f59e0b',
+                  }}
+                >
+                  <View style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: '#f59e0b',
                     marginRight: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 16 }}>🎉</Text>
+                  }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: '#92400e',
+                      marginBottom: 2,
+                    }}>
+                      {student.student_name}
+                    </Text>
+                    <Text style={{
+                      fontSize: 12,
+                      color: '#92400e',
+                    }}>
+                      {student.completed_count} lessons completed
+                    </Text>
+                  </View>
+                  <Ionicons name="hand-right" size={20} color="#f59e0b" />
                 </View>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "700",
-                    color: "#1a1a1a",
-                  }}
-                >
+              ))}
+            </View>
+          )}
+
+          {/* Recent Activity Timeline */}
+          {analytics?.recentActivity && analytics.recentActivity.length > 0 && (
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 20,
+              padding: 24,
+              marginBottom: 20,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.1,
+              shadowRadius: 12,
+              elevation: 6,
+            }}>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}>
+                <View style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: '#f3f4f6',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 12,
+                }}>
+                  <Ionicons name="time" size={24} color="#6b7280" />
+                </View>
+                <Text style={{
+                  fontSize: 20,
+                  fontWeight: '800',
+                  color: '#2c3e50',
+                }}>
                   Recent Completions
                 </Text>
               </View>
 
-              {loading ? (
-                <View style={{ gap: 16 }}>
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <View key={i} style={{ gap: 8 }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <SkeletonBox width={100} height={16} />
-                        <SkeletonBox width={60} height={14} />
-                      </View>
-                      <SkeletonBox width={140} height={14} />
-                    </View>
-                  ))}
-                </View>
-              ) : (
-                <View style={{ gap: 16 }}>
-                  {analytics?.recentActivity
-                    .slice(0, 5)
-                    .map((activity, index) => (
-                      <View
-                        key={index}
-                        style={{
-                          paddingBottom: 16,
-                          borderBottomWidth: index < 4 ? 1 : 0,
-                          borderBottomColor: "#f3f4f6",
-                        }}
-                      >
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 4,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontWeight: "600",
-                              color: "#1a1a1a",
-                              flex: 1,
-                              fontSize: 16,
-                            }}
-                          >
-                            {activity.student_name}
-                          </Text>
-                          <View
-                            style={{
-                              backgroundColor: "#f3f4f6",
-                              paddingHorizontal: 8,
-                              paddingVertical: 2,
-                              borderRadius: 8,
-                            }}
-                          >
-                            <Text
-                              style={{
-                                color: "#6b7280",
-                                fontSize: 12,
-                                fontWeight: "500",
-                              }}
-                            >
-                              {new Date(
-                                activity.completed_at
-                              ).toLocaleDateString()}
-                            </Text>
-                          </View>
-                        </View>
-                        <Text
-                          style={{
-                            color: "#6b7280",
-                            fontSize: 14,
-                            lineHeight: 20,
-                          }}
-                        >
-                          Completed: {activity.lesson_title}
-                        </Text>
-                      </View>
-                    ))}
-                </View>
-              )}
-            </View>
-          </View>
-        )}
-
-        {/* Getting Started or Success Message */}
-        {!loading && analytics?.totalStudents === 0 ? (
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#e5e7eb",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 12,
-              elevation: 4,
-              overflow: "hidden",
-            }}
-          >
-            <View style={{ height: 4, backgroundColor: "#f59e0b" }} />
-            <View style={{ padding: 20 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 16,
-                }}
-              >
+              {analytics.recentActivity.slice(0, 5).map((activity, index) => (
                 <View
+                  key={index}
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    backgroundColor: "#fef3c7",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    backgroundColor: index === 0 ? '#f0fdf4' : '#f8f9fa',
+                    borderRadius: 10,
+                    marginBottom: 8,
+                    borderLeftWidth: 4,
+                    borderLeftColor: index === 0 ? '#10b981' : '#6b7280',
+                  }}
+                >
+                  <View style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: index === 0 ? '#10b981' : '#6b7280',
                     marginRight: 12,
-                  }}
-                >
-                  <Text style={{ fontSize: 16 }}>🚀</Text>
+                  }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      fontSize: 16,
+                      fontWeight: '600',
+                      color: '#2c3e50',
+                      marginBottom: 2,
+                    }}>
+                      {activity.student_name}
+                    </Text>
+                    <Text style={{
+                      fontSize: 14,
+                      color: '#6c757d',
+                      marginBottom: 2,
+                    }}>
+                      {activity.lesson_title}
+                    </Text>
+                    <Text style={{
+                      fontSize: 12,
+                      color: '#6c757d',
+                    }}>
+                      {new Date(activity.completed_at).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <Ionicons 
+                    name="checkmark-circle" 
+                    size={20} 
+                    color={index === 0 ? '#10b981' : '#6b7280'} 
+                  />
                 </View>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "700",
-                    color: "#1a1a1a",
-                  }}
-                >
+              ))}
+            </View>
+          )}
+
+          {/* Getting Started Message */}
+          {analytics?.totalStudents === 0 && (
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 20,
+              padding: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.1,
+              shadowRadius: 12,
+              elevation: 6,
+            }}>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}>
+                <View style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 24,
+                  backgroundColor: '#fef3c7',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 12,
+                }}>
+                  <Ionicons name="rocket" size={24} color="#f59e0b" />
+                </View>
+                <Text style={{
+                  fontSize: 20,
+                  fontWeight: '800',
+                  color: '#2c3e50',
+                }}>
                   Getting Started
                 </Text>
               </View>
 
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: "#666",
-                  marginBottom: 20,
-                  lineHeight: 20,
-                }}
-              >
-                Welcome to your teaching dashboard! To get the most out of your
-                account, here's what you should do next:
+              <Text style={{
+                fontSize: 16,
+                color: '#6c757d',
+                marginBottom: 20,
+                lineHeight: 24,
+              }}>
+                Welcome to your teaching dashboard! To get the most out of your account, here's what you should do next:
               </Text>
 
-              <View style={{ gap: 16 }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    padding: 16,
-                    backgroundColor: "#fef3c7",
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#fbbf24",
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: "#f59e0b",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginRight: 16,
-                    }}
-                  >
-                    <Text style={{ fontSize: 20, color: "white" }}>👥</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontWeight: "600",
-                        color: "#92400e",
-                        marginBottom: 4,
-                      }}
-                    >
-                      Upload Your Student Roster
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: "#92400e",
-                        lineHeight: 18,
-                      }}
-                    >
-                      Go to the Roster tab to upload your class list and
-                      automatically create student accounts
-                    </Text>
-                  </View>
+              <View style={{
+                backgroundColor: '#fef3c7',
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 16,
+                borderLeftWidth: 4,
+                borderLeftColor: '#f59e0b',
+              }}>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                }}>
+                  <Ionicons name="people" size={20} color="#92400e" />
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: '#92400e',
+                    marginLeft: 8,
+                  }}>
+                    Upload Your Student Roster
+                  </Text>
                 </View>
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    padding: 16,
-                    backgroundColor: "#fef3c7",
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#fbbf24",
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: "#f59e0b",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      marginRight: 16,
-                    }}
-                  >
-                    <Ionicons name="settings" size={20} color="white" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontWeight: "600",
-                        color: "#92400e",
-                        marginBottom: 4,
-                      }}
-                    >
-                      Complete Your Profile
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: "#92400e",
-                        lineHeight: 18,
-                      }}
-                    >
-                      Visit the Settings tab to update your teacher profile and
-                      class preferences
-                    </Text>
-                  </View>
-                </View>
+                <Text style={{
+                  fontSize: 14,
+                  color: '#92400e',
+                  lineHeight: 20,
+                }}>
+                  Go to the Roster tab to upload your class list and automatically create student accounts
+                </Text>
               </View>
 
-              <View
-                style={{
-                  backgroundColor: "#fef3c7",
-                  padding: 12,
-                  borderRadius: 8,
-                  marginTop: 16,
-                }}
-              >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: "#92400e",
-                    fontStyle: "italic",
-                    textAlign: "center",
-                  }}
-                >
-                  Once you've uploaded students, this dashboard will show their
-                  progress and analytics!
+              <View style={{
+                backgroundColor: '#fef3c7',
+                borderRadius: 12,
+                padding: 16,
+                borderLeftWidth: 4,
+                borderLeftColor: '#f59e0b',
+              }}>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginBottom: 8,
+                }}>
+                  <Ionicons name="settings" size={20} color="#92400e" />
+                  <Text style={{
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: '#92400e',
+                    marginLeft: 8,
+                  }}>
+                    Complete Your Profile
+                  </Text>
+                </View>
+                <Text style={{
+                  fontSize: 14,
+                  color: '#92400e',
+                  lineHeight: 20,
+                }}>
+                  Visit the Settings tab to update your teacher profile and class preferences
                 </Text>
               </View>
             </View>
-          </View>
-        ) : null}
+          )}
+        </View>
       </ScrollView>
-    </View>
+    </PullToRefresh>
   );
 }

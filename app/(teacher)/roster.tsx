@@ -1,3 +1,4 @@
+import { PullToRefresh } from "@/components/PullToRefresh";
 import StudentListSkeleton from "@/components/StudentListSkeleton";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -6,7 +7,6 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  RefreshControl,
   Text,
   TextInput,
   View,
@@ -213,10 +213,10 @@ export default function TeacherRoster() {
     }
   };
 
-  const onRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     setSearchQuery("");
-    loadStudents(true);
+    await loadStudents(true);
   }, []);
 
   const loadMore = () => {
@@ -236,38 +236,60 @@ export default function TeacherRoster() {
       key={student.user_id}
       onPress={() => handleStudentPress(student)}
       style={{
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        paddingVertical: 16,
-        paddingHorizontal: 12,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 20,
         marginHorizontal: 16,
-        marginBottom: 8,
-        backgroundColor: "#fff",
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: "#e9ecef",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
+        marginBottom: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+        borderLeftWidth: 4,
+        borderLeftColor: '#2196F3',
       }}
       android_ripple={{ color: "#e3f2fd" }}
     >
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontWeight: "600", fontSize: 16, color: "#212529" }}>
-          {student.display_name}
-        </Text>
-        <Text style={{ color: "#6c757d", fontSize: 14, marginTop: 2 }}>
-          ID: {student.student_id} • Grade {student.grade_level}
-        </Text>
-      </View>
-
-      <View style={{ alignItems: "flex-end" }}>
-        <Text style={{ color: "#007bff", fontSize: 18, fontWeight: "300" }}>
-          ›
-        </Text>
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{
+            fontSize: 18,
+            fontWeight: '700',
+            color: '#2c3e50',
+            marginBottom: 4,
+          }}>
+            {student.display_name}
+          </Text>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}>
+            <Ionicons name="school" size={14} color="#6c757d" />
+            <Text style={{
+              color: '#6c757d',
+              fontSize: 14,
+              marginLeft: 4,
+            }}>
+              ID: {student.student_id} • Grade {student.grade_level}
+            </Text>
+          </View>
+        </View>
+        
+        <View style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          backgroundColor: '#f0f9ff',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <Ionicons name="chevron-forward" size={20} color="#2196F3" />
+        </View>
       </View>
     </Pressable>
   );
@@ -276,9 +298,21 @@ export default function TeacherRoster() {
     if (!loadingMore) return null;
 
     return (
-      <View style={{ paddingVertical: 20, alignItems: "center" }}>
-        <ActivityIndicator size="small" color="#007bff" />
-        <Text style={{ color: "#6c757d", marginTop: 8, fontSize: 14 }}>
+      <View style={{
+        paddingVertical: 20,
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        marginHorizontal: 16,
+        marginBottom: 12,
+      }}>
+        <ActivityIndicator size="small" color="#2196F3" />
+        <Text style={{
+          color: '#6c757d',
+          marginTop: 8,
+          fontSize: 14,
+          fontWeight: '500',
+        }}>
           Loading more students...
         </Text>
       </View>
@@ -289,21 +323,48 @@ export default function TeacherRoster() {
     if (loading) return null;
 
     return (
-      <View style={{ padding: 40, alignItems: "center" }}>
-        <Text style={{ fontSize: 48, marginBottom: 16 }}>
-          {searchQuery ? "🔍" : "👥"}
-        </Text>
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: "600",
-            color: "#495057",
-            marginBottom: 8,
-          }}
-        >
+      <View style={{
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 40,
+        marginHorizontal: 16,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
+      }}>
+        <View style={{
+          width: 80,
+          height: 80,
+          borderRadius: 40,
+          backgroundColor: searchQuery ? '#fff3cd' : '#f0f9ff',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginBottom: 16,
+        }}>
+          <Ionicons 
+            name={searchQuery ? "search" : "people"} 
+            size={40} 
+            color={searchQuery ? "#f59e0b" : "#2196F3"} 
+          />
+        </View>
+        <Text style={{
+          fontSize: 20,
+          fontWeight: '700',
+          color: '#2c3e50',
+          marginBottom: 8,
+          textAlign: 'center',
+        }}>
           {searchQuery ? "No students found" : "No students enrolled"}
         </Text>
-        <Text style={{ color: "#6c757d", textAlign: "center", lineHeight: 20 }}>
+        <Text style={{
+          color: '#6c757d',
+          textAlign: 'center',
+          lineHeight: 22,
+          fontSize: 16,
+        }}>
           {searchQuery
             ? `No students match "${searchQuery}". Try a different search term.`
             : "Upload a roster or add individual students to get started!"}
@@ -312,103 +373,162 @@ export default function TeacherRoster() {
     );
   };
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
+        <StudentListSkeleton />
+      </View>
+    );
+  }
+
   return (
-    <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
-      <View
-        style={{
-          backgroundColor: "#fff",
-          borderBottomWidth: 1,
-          borderBottomColor: "#e9ecef",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 6,
-          elevation: 8,
-        }}
-      >
-        {/* Stats Row */}
-        <View
-          style={{
-            flexDirection: "row",
-            paddingHorizontal: 20,
-            paddingVertical: 16,
-            backgroundColor: "#f8f9fa",
-            borderTopWidth: 1,
-            borderTopColor: "rgba(255,255,255,0.3)",
-          }}
-        >
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={{ fontSize: 20, fontWeight: "700", color: "#007bff" }}>
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      refreshing={refreshing}
+      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
+    >
+      {/* Header with Gradient */}
+      <View style={{
+        backgroundColor: '#16a085', // Teal gradient fallback
+        paddingTop: 20,
+        paddingBottom: 30,
+        paddingHorizontal: 16,
+      }}>
+        <Text style={{
+          fontSize: 32,
+          fontWeight: '800',
+          color: '#fff',
+          marginBottom: 8,
+        }}>
+          Student Roster
+        </Text>
+        <Text style={{
+          fontSize: 16,
+          color: 'rgba(255,255,255,0.9)',
+          marginBottom: 20,
+        }}>
+          Manage your students and class organization
+        </Text>
+
+        {/* Stats Cards */}
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginBottom: 10,
+        }}>
+          <View style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            borderRadius: 12,
+            padding: 16,
+            flex: 1,
+            marginRight: 8,
+            alignItems: 'center',
+          }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
               {Math.ceil(totalCount / 25) || 0}
             </Text>
-            <Text style={{ fontSize: 12, color: "#6c757d", fontWeight: "500" }}>
-              CLASSES
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center' }}>
+              Classes
             </Text>
           </View>
-          <View
-            style={{
-              width: 1,
-              backgroundColor: "#e9ecef",
-              marginHorizontal: 16,
-            }}
-          />
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={{ fontSize: 20, fontWeight: "700", color: "#28a745" }}>
+          
+          <View style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            borderRadius: 12,
+            padding: 16,
+            flex: 1,
+            marginHorizontal: 4,
+            alignItems: 'center',
+          }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
               {totalCount || 0}
             </Text>
-            <Text style={{ fontSize: 12, color: "#6c757d", fontWeight: "500" }}>
-              STUDENTS
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center' }}>
+              Students
             </Text>
           </View>
-          <View
-            style={{
-              width: 1,
-              backgroundColor: "#e9ecef",
-              marginHorizontal: 16,
-            }}
-          />
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={{ fontSize: 20, fontWeight: "700", color: "#ffc107" }}>
+
+          <View style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            borderRadius: 12,
+            padding: 16,
+            flex: 1,
+            marginLeft: 8,
+            alignItems: 'center',
+          }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
               {new Set(students.map((s) => s.grade_level)).size || 0}
             </Text>
-            <Text style={{ fontSize: 12, color: "#6c757d", fontWeight: "500" }}>
-              GRADES
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center' }}>
+              Grades
             </Text>
           </View>
         </View>
+      </View>
 
-        {/* Enhanced Search Bar */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: "#fff",
-              borderRadius: 16,
-              paddingHorizontal: 16,
-              paddingVertical: 12,
-              borderWidth: 2,
-              borderColor: searchQuery ? "#007bff" : "#e9ecef",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-          >
+      {/* Main Content */}
+      <View style={{ flex: 1, paddingTop: 0, marginTop: -20 }}>
+        
+        {/* Search Section */}
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 20,
+          padding: 20,
+          marginHorizontal: 16,
+          marginBottom: 20,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 12,
+          elevation: 6,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: 16,
+          }}>
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: '#f0f9ff',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginRight: 12,
+            }}>
+              <Ionicons name="search" size={24} color="#2196F3" />
+            </View>
+            <Text style={{
+              fontSize: 20,
+              fontWeight: '800',
+              color: '#2c3e50',
+            }}>
+              Find Students
+            </Text>
+          </View>
+
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#f8f9fa',
+            borderRadius: 12,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderWidth: 2,
+            borderColor: searchQuery ? '#2196F3' : 'transparent',
+          }}>
             <Ionicons
               name="search"
-              size={22}
-              color={searchQuery ? "#007bff" : "#6c757d"}
+              size={20}
+              color={searchQuery ? '#2196F3' : '#6c757d'}
               style={{ marginRight: 12 }}
             />
             <TextInput
               style={{
                 flex: 1,
                 fontSize: 16,
-                color: "#212529",
-                paddingVertical: 2,
-                fontWeight: "500",
+                color: '#2c3e50',
+                fontWeight: '500',
               }}
               placeholder="Search by name or student ID..."
               placeholderTextColor="#6c757d"
@@ -421,144 +541,172 @@ export default function TeacherRoster() {
               <Pressable
                 onPress={() => setSearchQuery("")}
                 style={{
-                  padding: 6,
+                  padding: 8,
                   borderRadius: 12,
-                  backgroundColor: "#f8f9fa",
+                  backgroundColor: '#e9ecef',
                 }}
               >
-                <Ionicons name="close" size={18} color="#6c757d" />
+                <Ionicons name="close" size={16} color="#6c757d" />
               </Pressable>
             )}
           </View>
         </View>
-      </View>
 
-      {/* Quick Actions */}
-      <View style={{ flexDirection: "row", gap: 12, padding: 16 }}>
-        <Pressable
-          onPress={() => setShowUploadModal(true)}
-          style={{
-            flex: 1,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-            backgroundColor: "#007bff",
-            borderRadius: 12,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Ionicons
-            name="cloud-upload-outline"
-            size={20}
-            color="#fff"
-            style={{ marginRight: 8 }}
-          />
-          <Text style={{ color: "#fff", fontWeight: "600", fontSize: 16 }}>
-            Upload Roster
-          </Text>
-        </Pressable>
-
-        <Pressable
-          onPress={() => setShowAddStudentModal(true)}
-          style={{
-            flex: 1,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-            backgroundColor: "#28a745",
-            borderRadius: 12,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Ionicons
-            name="person-add-outline"
-            size={20}
-            color="#fff"
-            style={{ marginRight: 8 }}
-          />
-          <Text style={{ color: "#fff", fontWeight: "600", fontSize: 16 }}>
-            Add Student
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* Upload Results */}
-      {results.length > 0 && (
-        <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
-          <View
+        {/* Quick Actions */}
+        <View style={{
+          flexDirection: 'row',
+          marginHorizontal: 16,
+          marginBottom: 20,
+          gap: 12,
+        }}>
+          <Pressable
+            onPress={() => setShowUploadModal(true)}
             style={{
-              padding: 16,
-              backgroundColor: "#d4edda",
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: "#c3e6cb",
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 18,
+              backgroundColor: '#2196F3',
+              borderRadius: 16,
+              shadowColor: '#2196F3',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 6,
             }}
           >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
-              <Ionicons
-                name="checkmark-circle"
-                size={20}
-                color="#155724"
-                style={{ marginRight: 8 }}
-              />
-              <Text
-                style={{ fontSize: 16, fontWeight: "600", color: "#155724" }}
-              >
-                Recent Student Additions
-              </Text>
-            </View>
-            {results.slice(0, 3).map((result, index) => (
-              <View
-                key={index}
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  paddingVertical: 4,
-                }}
-              >
-                <Text style={{ color: "#155724", fontSize: 14 }}>
-                  {result.student_id}
-                </Text>
-                <Text
-                  style={{
-                    color: result.status === "ok" ? "#155724" : "#721c24",
-                    fontWeight: "600",
-                    fontSize: 14,
-                  }}
-                >
-                  {result.status}
+            <Ionicons
+              name="cloud-upload"
+              size={22}
+              color="#fff"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={{
+              color: '#fff',
+              fontWeight: '700',
+              fontSize: 16,
+            }}>
+              Upload Roster
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setShowAddStudentModal(true)}
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 18,
+              backgroundColor: '#4CAF50',
+              borderRadius: 16,
+              shadowColor: '#4CAF50',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 6,
+            }}
+          >
+            <Ionicons
+              name="person-add"
+              size={22}
+              color="#fff"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={{
+              color: '#fff',
+              fontWeight: '700',
+              fontSize: 16,
+            }}>
+              Add Student
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* Upload Results */}
+        {results.length > 0 && (
+          <View style={{
+            marginHorizontal: 16,
+            marginBottom: 20,
+          }}>
+            <View style={{
+              backgroundColor: '#d1f2eb',
+              borderRadius: 16,
+              padding: 20,
+              borderLeftWidth: 4,
+              borderLeftColor: '#4CAF50',
+              shadowColor: '#4CAF50',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 12,
+              }}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={24}
+                  color="#155724"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: '#155724',
+                }}>
+                  Recent Student Additions
                 </Text>
               </View>
-            ))}
-            {results.length > 3 && (
-              <Text style={{ color: "#155724", fontSize: 12, marginTop: 4 }}>
-                ...and {results.length - 3} more
-              </Text>
-            )}
+              {results.slice(0, 3).map((result, index) => (
+                <View
+                  key={index}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: 8,
+                    paddingHorizontal: 12,
+                    backgroundColor: 'rgba(255,255,255,0.5)',
+                    borderRadius: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={{
+                    color: '#155724',
+                    fontSize: 16,
+                    fontWeight: '500',
+                  }}>
+                    {result.student_id}
+                  </Text>
+                  <Text style={{
+                    color: result.status === "ok" ? '#155724' : '#721c24',
+                    fontWeight: '700',
+                    fontSize: 14,
+                    textTransform: 'uppercase',
+                  }}>
+                    {result.status}
+                  </Text>
+                </View>
+              ))}
+              {results.length > 3 && (
+                <Text style={{
+                  color: '#155724',
+                  fontSize: 14,
+                  marginTop: 8,
+                  fontStyle: 'italic',
+                }}>
+                  ...and {results.length - 3} more students added
+                </Text>
+              )}
+            </View>
           </View>
-        </View>
-      )}
+        )}
 
-      {/* Content Area */}
-      {loading ? (
-        <StudentListSkeleton />
-      ) : (
+        {/* Student List */}
         <FlatList
           data={students}
           renderItem={renderStudent}
@@ -567,16 +715,13 @@ export default function TeacherRoster() {
           onEndReachedThreshold={0.1}
           ListFooterComponent={renderFooter}
           ListEmptyComponent={renderEmpty}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{
             flexGrow: 1,
             paddingBottom: 20,
           }}
         />
-      )}
+      </View>
 
       <UploadRosterModal
         visible={showUploadModal}
@@ -589,6 +734,6 @@ export default function TeacherRoster() {
         onClose={() => setShowAddStudentModal(false)}
         onStudentAdded={handleStudentAdded}
       />
-    </View>
+    </PullToRefresh>
   );
 }

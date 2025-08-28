@@ -1,15 +1,16 @@
+import { CircularProgress } from "@/components/CircularProgress";
+import { PullToRefresh } from "@/components/PullToRefresh";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 import ErrorPage, { ErrorPages } from "../../../components/ErrorPage";
 import {
-    showErrorBanner,
-    showSuccessBanner,
+  showErrorBanner,
+  showSuccessBanner,
 } from "../../../components/ShowAlert";
 import StudentDetailSkeleton from "../../../components/StudentDetailSkeleton";
 import StudentProgressModal from "../../../components/StudentProgressModal";
-import StudentSummaryStats from "../../../components/StudentSummaryStats";
 import { supabase } from "../../../services/supabase-init";
 
 type StudentProfile = {
@@ -53,10 +54,11 @@ export default function StudentDetailScreen() {
   const studentUserId = params.id;
 
   const [student, setStudent] = useState<StudentProfile | null>(null);
-  const [parents, setParents] = useState<ParentInfo[]>([]); // Changed to array
+  const [parents, setParents] = useState<ParentInfo[]>([]);
   const [progress, setProgress] = useState<StudentProgress[]>([]);
   const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [lastResendTime, setLastResendTime] = useState<{[email: string]: number}>({});
@@ -71,9 +73,14 @@ export default function StudentDetailScreen() {
     }
   }, [studentUserId]);
 
-  const loadStudentDetails = async () => {
-    try {
+  const loadStudentDetails = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
       setLoading(true);
+    }
+
+    try {
       setError(null);
 
       const { data: user } = await supabase.auth.getUser();
@@ -207,8 +214,13 @@ export default function StudentDetailScreen() {
       setError("An unexpected error occurred while loading student details");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const handleRefresh = useCallback(async () => {
+    await loadStudentDetails(true);
+  }, []);
 
   const handleGoBack = () => {
     router.push("/(teacher)/roster");
@@ -321,270 +333,543 @@ export default function StudentDetailScreen() {
     }));
   };
 
+  const progressPercentage = summary?.progressPercentage || 0;
+
   return (
-    <View style={{ flex: 1, backgroundColor: "#f8f9fa" }}>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          padding: 16,
-          backgroundColor: "#fff",
-          borderBottomWidth: 1,
-          borderBottomColor: "#e9ecef",
-        }}
-      >
+    <PullToRefresh
+      onRefresh={handleRefresh}
+      refreshing={refreshing}
+      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
+    >
+      {/* Header with Gradient */}
+      <View style={{
+        backgroundColor: '#e74c3c', // Red gradient fallback for student focus
+        paddingTop: 20,
+        paddingBottom: 30,
+        paddingHorizontal: 16,
+      }}>
+        {/* Back Button */}
         <Pressable
           onPress={handleGoBack}
           style={{
-            padding: 8,
-            borderRadius: 8,
-            backgroundColor: "#f8f9fa",
-            marginRight: 12,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: 16,
           }}
         >
-          <Ionicons name="arrow-back" size={24} color="#007bff" />
+          <Ionicons name="arrow-back" size={20} color="#fff" />
         </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 20, fontWeight: "700" }}>
-            {student.display_name}
-          </Text>
-          <Text style={{ color: "#666", fontSize: 14 }}>
-            Student ID: {student.student_id} • Grade {student.grade_level}
-          </Text>
+
+        <Text style={{
+          fontSize: 28,
+          fontWeight: '800',
+          color: '#fff',
+          marginBottom: 8,
+        }}>
+          {student.display_name}
+        </Text>
+        <Text style={{
+          fontSize: 16,
+          color: 'rgba(255,255,255,0.9)',
+          marginBottom: 20,
+        }}>
+          Student ID: {student.student_id} • Grade {student.grade_level}
+        </Text>
+
+        {/* Quick Stats */}
+        <View style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginBottom: 10,
+        }}>
+          <View style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            borderRadius: 12,
+            padding: 16,
+            flex: 1,
+            marginRight: 8,
+            alignItems: 'center',
+          }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
+              {summary?.completedLessons || 0}
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center' }}>
+              Completed
+            </Text>
+          </View>
+          
+          <View style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            borderRadius: 12,
+            padding: 16,
+            flex: 1,
+            marginHorizontal: 4,
+            alignItems: 'center',
+          }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
+              {progressPercentage}%
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center' }}>
+              Progress
+            </Text>
+          </View>
+
+          <View style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            borderRadius: 12,
+            padding: 16,
+            flex: 1,
+            marginLeft: 8,
+            alignItems: 'center',
+          }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '700' }}>
+              {summary?.inProgressLessons || 0}
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, textAlign: 'center' }}>
+              In Progress
+            </Text>
+          </View>
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1, padding: 16 }}>
-        {/* Progress Summary */}
+      {/* Main Content */}
+      <View style={{ flex: 1, paddingTop: 0, marginTop: -20 }}>
+        
+        {/* Progress Overview Card */}
         {summary && (
-          <StudentSummaryStats 
-            summary={summary} 
-            onViewDetails={() => setShowDetailModal(true)}
-          />
-        )}
-        {/* Student Info Card */}
-        <View
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 16,
-            borderWidth: 1,
-            borderColor: "#e9ecef",
-          }}
-        >
-          <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
-            📋 Student Information
-          </Text>
-          
-          <View style={{ gap: 8 }}>
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-              <Text style={{ color: "#666" }}>Display Name:</Text>
-              <Text style={{ fontWeight: "500" }}>{student.display_name}</Text>
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 20,
+            padding: 24,
+            marginHorizontal: 16,
+            marginBottom: 20,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            elevation: 6,
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginBottom: 20,
+            }}>
+              <View style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: '#e8f5e8',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: 12,
+              }}>
+                <Ionicons name="analytics" size={24} color="#4CAF50" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{
+                  fontSize: 20,
+                  fontWeight: '800',
+                  color: '#2c3e50',
+                }}>
+                  Learning Progress
+                </Text>
+                <Text style={{
+                  fontSize: 14,
+                  color: '#6c757d',
+                }}>
+                  {summary.totalLessons} total lessons available
+                </Text>
+              </View>
+              
+              <CircularProgress 
+                percentage={progressPercentage}
+                size={70}
+                color={progressPercentage >= 75 ? "#4CAF50" : progressPercentage >= 50 ? "#FF9800" : "#e74c3c"}
+              />
             </View>
 
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-              <Text style={{ color: "#666" }}>Student ID:</Text>
-              <Text style={{ fontWeight: "500" }}>{student.student_id}</Text>
+            <View style={{
+              backgroundColor: '#f8f9fa',
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+            }}>
+              <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                marginBottom: 8,
+              }}>
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '600',
+                  color: '#2c3e50',
+                }}>
+                  Overall Progress
+                </Text>
+                <Text style={{
+                  fontSize: 14,
+                  fontWeight: '600',
+                  color: '#4CAF50',
+                }}>
+                  {summary.completedLessons} / {summary.totalLessons} lessons
+                </Text>
+              </View>
+              
+              <View style={{
+                height: 8,
+                backgroundColor: '#e9ecef',
+                borderRadius: 4,
+                overflow: 'hidden',
+              }}>
+                <View style={{
+                  height: '100%',
+                  width: `${progressPercentage}%`,
+                  backgroundColor: progressPercentage >= 75 ? "#4CAF50" : progressPercentage >= 50 ? "#FF9800" : "#e74c3c",
+                  borderRadius: 4,
+                }} />
+              </View>
             </View>
 
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            <Pressable
+              onPress={() => setShowDetailModal(true)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 16,
+                backgroundColor: '#4CAF50',
+                borderRadius: 12,
+                shadowColor: '#4CAF50',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
             >
-              <Text style={{ color: "#666" }}>Grade Level:</Text>
-              <Text style={{ fontWeight: "500" }}>
-                Grade {student.grade_level}
+              <Ionicons name="list" size={20} color="#fff" style={{ marginRight: 8 }} />
+              <Text style={{
+                fontSize: 16,
+                fontWeight: '700',
+                color: '#fff',
+              }}>
+                View Detailed Progress
               </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* Student Information Card */}
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 20,
+          padding: 24,
+          marginHorizontal: 16,
+          marginBottom: 20,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 12,
+          elevation: 6,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: 20,
+          }}>
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: '#f0f9ff',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginRight: 12,
+            }}>
+              <Ionicons name="person" size={24} color="#2196F3" />
+            </View>
+            <Text style={{
+              fontSize: 20,
+              fontWeight: '800',
+              color: '#2c3e50',
+            }}>
+              Student Information
+            </Text>
+          </View>
+          
+          <View style={{ gap: 16 }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              backgroundColor: '#f8f9fa',
+              borderRadius: 12,
+            }}>
+              <Ionicons name="person-outline" size={20} color="#6c757d" style={{ marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, color: '#6c757d', fontWeight: '600' }}>
+                  DISPLAY NAME
+                </Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#2c3e50' }}>
+                  {student.display_name}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              backgroundColor: '#f8f9fa',
+              borderRadius: 12,
+            }}>
+              <Ionicons name="id-card-outline" size={20} color="#6c757d" style={{ marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, color: '#6c757d', fontWeight: '600' }}>
+                  STUDENT ID
+                </Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#2c3e50', fontFamily: 'monospace' }}>
+                  {student.student_id}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 12,
+              paddingHorizontal: 16,
+              backgroundColor: '#f8f9fa',
+              borderRadius: 12,
+            }}>
+              <Ionicons name="school-outline" size={20} color="#6c757d" style={{ marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 12, color: '#6c757d', fontWeight: '600' }}>
+                  GRADE LEVEL
+                </Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#2c3e50' }}>
+                  Grade {student.grade_level}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
 
-        {/* Parent Info Card */}
-        <View
-          style={{
-            backgroundColor: "#fff",
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 16,
-            borderWidth: 1,
-            borderColor: "#e9ecef",
-          }}
-        >
-          <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 12 }}>
-            👨‍👩‍👧‍👦 Parent Information
-          </Text>
+        {/* Parent Information Card */}
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 20,
+          padding: 24,
+          marginHorizontal: 16,
+          marginBottom: 20,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 12,
+          elevation: 6,
+        }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginBottom: 20,
+          }}>
+            <View style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: '#fff3cd',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginRight: 12,
+            }}>
+              <Ionicons name="people" size={24} color="#f59e0b" />
+            </View>
+            <Text style={{
+              fontSize: 20,
+              fontWeight: '800',
+              color: '#2c3e50',
+            }}>
+              Parent Information
+            </Text>
+          </View>
 
           {parents.length > 0 ? (
-            <View style={{ gap: 12 }}>
+            <View style={{ gap: 16 }}>
               {parents.map((parent, index) => (
                 <View
                   key={parent.user_id}
                   style={{
-                    padding: 12,
-                    backgroundColor: "#f8f9fa",
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: "#e9ecef",
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: 16,
+                    padding: 20,
+                    borderLeftWidth: 4,
+                    borderLeftColor: '#f59e0b',
                   }}
                 >
                   {parents.length > 1 && (
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "600",
-                        color: "#495057",
-                        marginBottom: 8,
-                      }}
-                    >
+                    <Text style={{
+                      fontSize: 14,
+                      fontWeight: '700',
+                      color: '#f59e0b',
+                      marginBottom: 12,
+                    }}>
                       Parent {index + 1}
                     </Text>
                   )}
 
-                  <View style={{ gap: 6 }}>
-                    <View
-                      style={{ flexDirection: "row", justifyContent: "space-between" }}
-                    >
-                      <Text style={{ color: "#666", fontSize: 14 }}>Name:</Text>
-                      <Text style={{ fontWeight: "500", fontSize: 14 }}>
-                        {parent.first_name ? (
-                          `${parent.first_name} ${parent.last_name}`
-                        ) : (
-                          <Text
-                            style={{
-                              fontWeight: "400",
-                              fontSize: 14,
-                              color: "#666",
-                              fontStyle: "italic",
-                            }}
-                          >
-                            No name on file
+                  <View style={{ gap: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Ionicons name="person-outline" size={16} color="#6c757d" style={{ marginRight: 8 }} />
+                      <Text style={{ fontSize: 12, color: '#6c757d', fontWeight: '600' }}>NAME</Text>
+                    </View>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#2c3e50', marginLeft: 24 }}>
+                      {parent.first_name ? (
+                        `${parent.first_name} ${parent.last_name}`
+                      ) : (
+                        <Text style={{ fontStyle: 'italic', color: '#6c757d' }}>
+                          No name on file
+                        </Text>
+                      )}
+                    </Text>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                      <Ionicons name="mail-outline" size={16} color="#6c757d" style={{ marginRight: 8 }} />
+                      <Text style={{ fontSize: 12, color: '#6c757d', fontWeight: '600' }}>EMAIL</Text>
+                    </View>
+                    <Text style={{ fontSize: 14, color: '#2c3e50', marginLeft: 24 }}>
+                      {parent.email}
+                    </Text>
+
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginTop: 8,
+                      paddingTop: 12,
+                      borderTopWidth: 1,
+                      borderTopColor: '#e9ecef',
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: '#4CAF50',
+                          marginRight: 8,
+                        }} />
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: '#4CAF50' }}>
+                          Active Account
+                        </Text>
+                      </View>
+                      
+                      {/* Parent Actions Menu */}
+                      <View style={{ position: 'relative' }}>
+                        <Pressable
+                          onPress={() => toggleParentMenu(parent.user_id)}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            paddingHorizontal: 12,
+                            paddingVertical: 8,
+                            backgroundColor: '#fff',
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: '#e9ecef',
+                          }}
+                        >
+                          <Text style={{ fontSize: 14, color: '#2c3e50', marginRight: 4 }}>
+                            Actions
                           </Text>
-                        )}
-                      </Text>
-                    </View>
-
-                    <View
-                      style={{ flexDirection: "row", justifyContent: "space-between" }}
-                    >
-                      <Text style={{ color: "#666", fontSize: 14 }}>Email:</Text>
-                      <Text
-                        style={{
-                          fontWeight: "500",
-                          fontSize: 13,
-                          flex: 1,
-                          textAlign: "right",
-                        }}
-                      >
-                        {parent.email}
-                      </Text>
-                    </View>
-
-                    <View
-                      style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}
-                    >
-                      <Text style={{ color: "#666", fontSize: 14 }}>Account:</Text>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                        <View style={{ flexDirection: "row", alignItems: "center" }}>
-                          <View
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 4,
-                              backgroundColor: "#28a745",
-                              marginRight: 6,
-                            }}
+                          <Ionicons 
+                            name={showParentMenu[parent.user_id] ? "chevron-up" : "chevron-down"} 
+                            size={16} 
+                            color="#6c757d" 
                           />
-                          <Text style={{ fontWeight: "500", fontSize: 13 }}>
-                            Active
-                          </Text>
-                        </View>
+                        </Pressable>
                         
-                        {/* Parent Actions Menu */}
-                        <View style={{ position: 'relative' }}>
-                          <Pressable
-                            onPress={() => toggleParentMenu(parent.user_id)}
-                            style={{
-                              padding: 6,
-                              borderRadius: 4,
-                              backgroundColor: "#f8f9fa",
-                              borderWidth: 1,
-                              borderColor: "#dee2e6",
-                            }}
-                          >
-                            <Ionicons 
-                              name={showParentMenu[parent.user_id] ? "chevron-up" : "chevron-down"} 
-                              size={14} 
-                              color="#6c757d" 
-                            />
-                          </Pressable>
-                          
-                          {/* Dropdown Menu */}
-                          {showParentMenu[parent.user_id] && (
-                            <View
+                        {/* Enhanced Dropdown Menu */}
+                        {showParentMenu[parent.user_id] && (
+                          <View style={{
+                            position: 'absolute',
+                            bottom: 40,
+                            right: 0,
+                            backgroundColor: '#fff',
+                            borderRadius: 12,
+                            borderWidth: 1,
+                            borderColor: '#e9ecef',
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 8,
+                            elevation: 8,
+                            minWidth: 160,
+                            zIndex: 1000,
+                          }}>
+                            <Pressable
+                              onPress={() => {
+                                resendParentEmail(parent.email, parent.first_name ? `${parent.first_name} ${parent.last_name}` : 'Parent');
+                                toggleParentMenu(parent.user_id);
+                              }}
                               style={{
-                                position: 'absolute',
-                                bottom: 32, // Changed from top: 32 to bottom: 32
-                                right: 0,
-                                backgroundColor: '#fff',
-                                borderRadius: 8,
-                                borderWidth: 1,
-                                borderColor: '#e9ecef',
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.1,
-                                shadowRadius: 4,
-                                elevation: 5,
-                                minWidth: 140,
-                                zIndex: 1000,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                padding: 16,
+                                borderBottomWidth: 1,
+                                borderBottomColor: '#f8f9fa',
                               }}
                             >
-                              <Pressable
-                                onPress={() => {
-                                  resendParentEmail(parent.email, parent.first_name ? `${parent.first_name} ${parent.last_name}` : 'Parent');
-                                  toggleParentMenu(parent.user_id);
-                                }}
-                                style={{
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  padding: 12,
-                                  borderBottomWidth: 1,
-                                  borderBottomColor: '#f8f9fa',
-                                }}
-                              >
-                                <Ionicons name="mail-outline" size={16} color="#007bff" style={{ marginRight: 8 }} />
-                                <Text style={{ fontSize: 14, color: '#495057' }}>Resend Email</Text>
-                              </Pressable>
-                              
-                              {/* Send Message option */}
-                              <Pressable
-                                disabled={true}
-                                style={{
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  padding: 12,
-                                  opacity: 0.5,
-                                }}
-                              >
-                                <Ionicons name="chatbubble-outline" size={16} color="#6c757d" style={{ marginRight: 8 }} />
-                                <Text style={{ fontSize: 14, color: '#6c757d' }}>Message</Text>
-                                <View style={{ 
-                                  backgroundColor: '#7C24FF',
-                                  paddingHorizontal: 4,
-                                  paddingVertical: 1,
-                                  borderRadius: 3,
-                                  marginLeft: 4,
-                                }}>
-                                  <Text style={{ fontSize: 9, color: '#fff', fontWeight: '500' }}>Soon</Text>
-                                </View>
-                              </Pressable>
-                            </View>
-                          )}
-                        </View>
+                              <View style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 16,
+                                backgroundColor: '#e3f2fd',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                marginRight: 12,
+                              }}>
+                                <Ionicons name="mail" size={16} color="#2196F3" />
+                              </View>
+                              <Text style={{ fontSize: 14, fontWeight: '600', color: '#2c3e50' }}>
+                                Resend Email
+                              </Text>
+                            </Pressable>
+                            
+                            <Pressable
+                              disabled={true}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                padding: 16,
+                                opacity: 0.5,
+                              }}
+                            >
+                              <View style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 16,
+                                backgroundColor: '#f3e5f5',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                marginRight: 12,
+                              }}>
+                                <Ionicons name="chatbubble" size={16} color="#9c27b0" />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 14, fontWeight: '600', color: '#6c757d' }}>
+                                  Send Message
+                                </Text>
+                                <Text style={{ fontSize: 10, color: '#9c27b0', fontWeight: '600' }}>
+                                  Coming Soon
+                                </Text>
+                              </View>
+                            </Pressable>
+                          </View>
+                        )}
                       </View>
                     </View>
                   </View>
@@ -592,34 +877,43 @@ export default function StudentDetailScreen() {
               ))}
             </View>
           ) : (
-            <View
-              style={{
-                padding: 12,
-                backgroundColor: "#fff3cd",
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: "#ffeaa7",
-              }}
-            >
-              <Text
-                style={{ color: "#856404", fontSize: 14, textAlign: "center" }}
-              >
-                ⚠️ No parent accounts found for this student
+            <View style={{
+              backgroundColor: '#fff3cd',
+              borderRadius: 16,
+              padding: 20,
+              alignItems: 'center',
+              borderLeftWidth: 4,
+              borderLeftColor: '#ffc107',
+            }}>
+              <Ionicons name="alert-circle" size={32} color="#856404" style={{ marginBottom: 12 }} />
+              <Text style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: '#856404',
+                textAlign: 'center',
+              }}>
+                No Parent Accounts Found
+              </Text>
+              <Text style={{
+                fontSize: 14,
+                color: '#856404',
+                textAlign: 'center',
+                marginTop: 4,
+              }}>
+                This student doesn't have any linked parent accounts
               </Text>
             </View>
           )}
         </View>
+      </View>
 
-       
-
-        {/* Progress Detail Modal */}
-        <StudentProgressModal
-          visible={showDetailModal}
-          onClose={() => setShowDetailModal(false)}
-          progress={progress}
-          studentName={student.display_name}
-        />
-      </ScrollView>
-    </View>
+      {/* Progress Detail Modal */}
+      <StudentProgressModal
+        visible={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        progress={progress}
+        studentName={student.display_name}
+      />
+    </PullToRefresh>
   );
 }

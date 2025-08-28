@@ -1,5 +1,8 @@
+import AuthPortalSwitcher from "@/components/AuthPortalSwitcher";
 import { showErrorAlert, showSuccessAlert } from "@/components/ShowAlert";
 import { supabase } from "@/services/supabase-init";
+import { createShadowStyle } from "@/utils/shadowStyles";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -72,7 +75,6 @@ export default function TeacherSignUp() {
       const school_slug = schoolSlug.trim();
       const emailTrim = email.trim();
 
-      // 1) Sign up (teacher uses real email/password)
       const { error: signUpErr } = await supabase.auth.signUp({
         email: emailTrim,
         password: pw,
@@ -80,12 +82,9 @@ export default function TeacherSignUp() {
       });
       if (signUpErr) throw signUpErr;
 
-      // 3) We must have a user at this point
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) throw new Error("Auth succeeded, but no user in session.");
 
-      // 4) (Optional) Resolve school_id if you need it right now for UI defaults
-      //     You can keep this, or skip if not needed here.
       const { data: schoolRow, error: sErr } = await supabase
         .from("schools")
         .select("id")
@@ -94,7 +93,6 @@ export default function TeacherSignUp() {
       if (sErr) throw sErr;
       const school_id = schoolRow.id;
 
-      // 5) IMPORTANT: Call the SECURITY DEFINER RPC instead of direct upserts
       const { error: rpcErr } = await supabase.rpc("ensure_teacher_profile", {
         p_first_name: first_name,
         p_last_name: last_name,
@@ -119,402 +117,436 @@ export default function TeacherSignUp() {
   };
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: "#f8f9fa" }}
-      contentContainerStyle={{
-        padding: 24,
-        paddingTop: 60,
-      }}
-    >
+    <View style={{ flex: 1, backgroundColor: "#f8fafc" }}>
+      {/*  Gradient Header - Extended for overlap effect */}
       <View
         style={{
-          alignItems: "center",
-          marginBottom: 40,
+          height: 220,
+          backgroundColor: "#8e44ad",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
+        {/* Gradient overlay */}
         <View
           style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(142, 68, 173, 0.2)",
+          }}
+        />
+
+        {/* Decorative circles */}
+        <View
+          style={{
+            position: "absolute",
+            top: -30,
+            right: -30,
+            width: 100,
+            height: 100,
+            borderRadius: 50,
+            backgroundColor: "rgba(255,255,255,0.1)",
+          }}
+        />
+        <View
+          style={{
+            position: "absolute",
+            bottom: -20,
+            left: -20,
             width: 80,
             height: 80,
-            backgroundColor: "#2196F3",
             borderRadius: 40,
-            justifyContent: "center",
-            alignItems: "center",
-            marginBottom: 20,
-            shadowColor: "#2196F3",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: 8,
+            backgroundColor: "rgba(255,255,255,0.05)",
           }}
-        >
-          <Text style={{ fontSize: 36, color: "white" }}>🎓</Text>
-        </View>
-
-        <Text
-          style={{
-            fontSize: 28,
-            fontWeight: "700",
-            color: "#212529",
-            marginBottom: 8,
-            textAlign: "center",
-          }}
-        >
-          Join as Teacher
-        </Text>
-
-        <Text
-          style={{
-            fontSize: 16,
-            color: "#6c757d",
-            textAlign: "center",
-            lineHeight: 22,
-          }}
-        >
-          Create your educator account
-        </Text>
-      </View>
-
-      <View
-        style={{
-          backgroundColor: "white",
-          borderRadius: 16,
-          padding: 24,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 4,
-          marginBottom: 24,
-        }}
-      >
-        <View style={{ marginBottom: 20 }}>
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: "#212529",
-              marginBottom: 8,
-            }}
-          >
-            School
-          </Text>
-          <Pressable
-            onPress={() => setShowSchoolPicker(true)}
-            style={{
-              borderWidth: 2,
-              borderColor: schoolSlug ? "#2196F3" : "#e9ecef",
-              borderRadius: 12,
-              padding: 16,
-              backgroundColor: "#f8f9fa",
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                color: schoolSlug ? "#212529" : "#6c757d",
-              }}
-            >
-              {getSelectedSchoolName()}
-            </Text>
-            <Text style={{ color: "#6c757d", fontSize: 16 }}>▼</Text>
-          </Pressable>
-        </View>
+        />
 
         <View
           style={{
-            flexDirection: "row",
-            gap: 12,
-            marginBottom: 20,
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 24,
+            paddingBottom: 20,
           }}
         >
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: "#212529",
-                marginBottom: 8,
-              }}
-            >
-              First Name
-            </Text>
-            <TextInput
-              value={firstName}
-              onChangeText={setFirstName}
-              placeholder="Jordan"
-              autoCapitalize="words"
-              style={{
-                borderWidth: 2,
-                borderColor: firstName ? "#2196F3" : "#e9ecef",
-                borderRadius: 12,
-                padding: 16,
-                fontSize: 16,
-                backgroundColor: "#f8f9fa",
-              }}
-            />
+          {/* App Icon */}
+          <View
+            style={{
+              width: 70,
+              height: 70,
+              borderRadius: 35,
+              backgroundColor: "rgba(255,255,255,0.2)",
+              justifyContent: "center",
+              alignItems: "center",
+              marginBottom: 12,
+              borderWidth: 3,
+              borderColor: "rgba(255,255,255,0.3)",
+              ...createShadowStyle(8),
+            }}
+          >
+            <Ionicons name="add-circle" size={35} color="white" />
           </View>
 
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "600",
-                color: "#212529",
-                marginBottom: 8,
-              }}
-            >
-              Last Name
-            </Text>
-            <TextInput
-              value={lastName}
-              onChangeText={setLastName}
-              placeholder="Smith"
-              autoCapitalize="words"
-              style={{
-                borderWidth: 2,
-                borderColor: lastName ? "#2196F3" : "#e9ecef",
-                borderRadius: 12,
-                padding: 16,
-                fontSize: 16,
-                backgroundColor: "#f8f9fa",
-              }}
-            />
-          </View>
-        </View>
-
-        <View style={{ marginBottom: 20 }}>
           <Text
             style={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: "#212529",
-              marginBottom: 8,
+              fontSize: 26,
+              fontWeight: "800",
+              color: "white",
+              textAlign: "center",
+              marginBottom: 4,
             }}
           >
-            Email Address
+            Join as Teacher
           </Text>
-          <TextInput
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholder="teacher@school.org"
-            style={{
-              borderWidth: 2,
-              borderColor: email ? "#2196F3" : "#e9ecef",
-              borderRadius: 12,
-              padding: 16,
-              fontSize: 16,
-              backgroundColor: "#f8f9fa",
-            }}
-          />
         </View>
-
-        <View style={{ marginBottom: 20 }}>
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: "#212529",
-              marginBottom: 8,
-            }}
-          >
-            Password
-          </Text>
-          <TextInput
-            value={pw}
-            onChangeText={setPw}
-            placeholder="At least 8 characters"
-            secureTextEntry
-            style={{
-              borderWidth: 2,
-              borderColor: pw ? "#2196F3" : "#e9ecef",
-              borderRadius: 12,
-              padding: 16,
-              fontSize: 16,
-              backgroundColor: "#f8f9fa",
-            }}
-          />
-        </View>
-
-        <View style={{ marginBottom: 24 }}>
-          <Text
-            style={{
-              fontSize: 16,
-              fontWeight: "600",
-              color: "#212529",
-              marginBottom: 8,
-            }}
-          >
-            Confirm Password
-          </Text>
-          <TextInput
-            value={pw2}
-            onChangeText={setPw2}
-            placeholder="Re-enter your password"
-            secureTextEntry
-            style={{
-              borderWidth: 2,
-              borderColor:
-                pw2 && pw === pw2
-                  ? "#4CAF50"
-                  : pw2 && pw !== pw2
-                  ? "#f44336"
-                  : "#e9ecef",
-              borderRadius: 12,
-              padding: 16,
-              fontSize: 16,
-              backgroundColor: "#f8f9fa",
-            }}
-          />
-          {pw2 && pw !== pw2 ? (
-            <Text
-              style={{
-                color: "#f44336",
-                fontSize: 12,
-                marginTop: 4,
-                marginLeft: 4,
-              }}
-            >
-              Passwords don't match
-            </Text>
-          ) : null}
-        </View>
-
-        <Pressable
-          onPress={submit}
-          disabled={!canSubmit}
-          style={{
-            padding: 18,
-            backgroundColor: canSubmit ? "#2196F3" : "#e9ecef",
-            borderRadius: 12,
-            shadowColor: canSubmit ? "#2196F3" : "transparent",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 8,
-            elevation: canSubmit ? 4 : 0,
-          }}
-        >
-          {busy ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <Text
-              style={{
-                color: canSubmit ? "white" : "#6c757d",
-                textAlign: "center",
-                fontWeight: "700",
-                fontSize: 16,
-              }}
-            >
-              Create Teacher Account
-            </Text>
-          )}
-        </Pressable>
       </View>
-
       <View
         style={{
-          backgroundColor: "white",
-          borderRadius: 16,
-          padding: 20,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8,
-          elevation: 4,
+          flex: 1,
+          marginTop: -53,
+          paddingHorizontal: 24,
         }}
       >
-        <Text
+        {/*  Form Container */}
+        <View
           style={{
-            fontSize: 16,
-            fontWeight: "600",
-            color: "#212529",
-            textAlign: "center",
-            marginBottom: 16,
+            backgroundColor: "white",
+            borderRadius: 24,
+            padding: 24,
+            ...createShadowStyle(12, "#000", 0.15, 24),
+            marginBottom: 20,
+            borderWidth: 1,
+            borderColor: "rgba(142, 68, 173, 0.1)",
           }}
         >
-          Already have an account?
-        </Text>
+          {/* School Field */}
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "700",
+                color: "#1e293b",
+                marginBottom: 8,
+              }}
+            >
+              <Text style={{ fontWeight: "700" }}>School</Text>
+            </Text>
+            <Pressable
+              onPress={() => setShowSchoolPicker(true)}
+              style={{
+                borderWidth: 2,
+                borderColor: schoolSlug ? "#8e44ad" : "#e2e8f0",
+                borderRadius: 16,
+                padding: 18,
+                backgroundColor: "#f8fafc",
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                ...(schoolSlug ? createShadowStyle(2, "#8e44ad", 0.1) : {}),
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: schoolSlug ? "#1e293b" : "#94a3b8",
+                  fontWeight: "500",
+                }}
+              >
+                {getSelectedSchoolName()}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#94a3b8" />
+            </Pressable>
+          </View>
 
-        <View style={{ gap: 8 }}>
+          {/* Name Fields */}
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 12,
+              marginBottom: 20,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: "#1e293b",
+                  marginBottom: 8,
+                }}
+              >
+                <Text style={{ fontWeight: "700" }}>First Name</Text>
+              </Text>
+              <TextInput
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="Jordan"
+                placeholderTextColor="#94a3b8"
+                autoCapitalize="words"
+                style={{
+                  borderWidth: 2,
+                  borderColor: firstName ? "#8e44ad" : "#e2e8f0",
+                  borderRadius: 16,
+                  padding: 16,
+                  fontSize: 16,
+                  backgroundColor: "#f8fafc",
+                  fontWeight: "500",
+                  ...(firstName ? createShadowStyle(2, "#8e44ad", 0.1) : {}),
+                }}
+              />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: "#1e293b",
+                  marginBottom: 8,
+                }}
+              >
+                <Text style={{ fontWeight: "700" }}>Last Name</Text>
+              </Text>
+              <TextInput
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Smith"
+                placeholderTextColor="#94a3b8"
+                autoCapitalize="words"
+                style={{
+                  borderWidth: 2,
+                  borderColor: lastName ? "#8e44ad" : "#e2e8f0",
+                  borderRadius: 16,
+                  padding: 16,
+                  fontSize: 16,
+                  backgroundColor: "#f8fafc",
+                  fontWeight: "500",
+                  ...(lastName ? createShadowStyle(2, "#8e44ad", 0.1) : {}),
+                }}
+              />
+            </View>
+          </View>
+
+          {/* Email Field */}
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "700",
+                color: "#1e293b",
+                marginBottom: 8,
+              }}
+            >
+              <Text style={{ fontWeight: "700" }}>Email Address</Text>
+            </Text>
+            <View style={{ position: "relative" }}>
+              <TextInput
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholder="teacher@school.org"
+                placeholderTextColor="#94a3b8"
+                style={{
+                  borderWidth: 2,
+                  borderColor: email ? "#8e44ad" : "#e2e8f0",
+                  borderRadius: 16,
+                  padding: 18,
+                  paddingLeft: 52, // Add space for icon
+                  fontSize: 16,
+                  backgroundColor: "#f8fafc",
+                  fontWeight: "500",
+                  ...(email ? createShadowStyle(2, "#8e44ad", 0.1) : {}),
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  left: 16,
+                  top: 18,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: email ? "#8e44ad" : "#94a3b8",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="mail" size={14} color="white" />
+              </View>
+            </View>
+          </View>
+
+          {/* Password Fields */}
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "700",
+                color: "#1e293b",
+                marginBottom: 8,
+              }}
+            >
+              <Text style={{ fontWeight: "700" }}>Password</Text>
+            </Text>
+            <View style={{ position: "relative" }}>
+              <TextInput
+                value={pw}
+                onChangeText={setPw}
+                placeholder="At least 8 characters"
+                placeholderTextColor="#94a3b8"
+                secureTextEntry
+                style={{
+                  borderWidth: 2,
+                  borderColor: pw ? "#8e44ad" : "#e2e8f0",
+                  borderRadius: 16,
+                  padding: 18,
+                  paddingLeft: 52, // Add space for icon
+                  fontSize: 16,
+                  backgroundColor: "#f8fafc",
+                  fontWeight: "500",
+                  ...(pw ? createShadowStyle(2, "#8e44ad", 0.1) : {}),
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  left: 16,
+                  top: 18,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: pw ? "#8e44ad" : "#94a3b8",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="lock-closed" size={14} color="white" />
+              </View>
+            </View>
+          </View>
+
+          <View style={{ marginBottom: 24 }}>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: "700",
+                color: "#1e293b",
+                marginBottom: 8,
+              }}
+            >
+              <Text style={{ fontWeight: "700" }}>Confirm Password</Text>
+            </Text>
+            <View style={{ position: "relative" }}>
+              <TextInput
+                value={pw2}
+                onChangeText={setPw2}
+                placeholder="Re-enter your password"
+                placeholderTextColor="#94a3b8"
+                secureTextEntry
+                style={{
+                  borderWidth: 2,
+                  borderColor:
+                    pw2 && pw === pw2
+                      ? "#4CAF50"
+                      : pw2 && pw !== pw2
+                      ? "#f44336"
+                      : "#e2e8f0",
+                  borderRadius: 16,
+                  padding: 18,
+                  paddingLeft: 52, // Add space for icon
+                  fontSize: 16,
+                  backgroundColor: "#f8fafc",
+                  fontWeight: "500",
+                  ...(pw2 ? createShadowStyle(
+                    2,
+                    pw2 && pw === pw2 ? "#4CAF50" : pw2 && pw !== pw2 ? "#f44336" : "#000",
+                    0.1
+                  ) : {}),
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  left: 16,
+                  top: 18,
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor:
+                    pw2 && pw === pw2
+                      ? "#4CAF50"
+                      : pw2 && pw !== pw2
+                      ? "#f44336"
+                      : "#94a3b8",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Ionicons name="lock-closed" size={14} color="white" />
+              </View>
+            </View>
+            {pw2 && pw !== pw2 ? (
+              <Text
+                style={{
+                  color: "#f44336",
+                  fontSize: 12,
+                  marginTop: 6,
+                  marginLeft: 4,
+                  fontWeight: "500",
+                }}
+              >
+                Passwords don't match
+              </Text>
+            ) : null}
+          </View>
+
+          {/*  Create Account Button */}
           <Pressable
-            onPress={() => router.replace("/teacher-signin")}
+            onPress={submit}
+            disabled={!canSubmit}
             style={{
               flexDirection: "row",
               alignItems: "center",
-              padding: 12,
-              borderRadius: 8,
-              backgroundColor: "#f8f9fa",
+              justifyContent: "center",
+              padding: 18,
+              backgroundColor: canSubmit ? "#8e44ad" : "#e2e8f0",
+              borderRadius: 16,
+              ...(canSubmit ? createShadowStyle(6, "#8e44ad", 0.3, 12) : {}),
+              borderWidth: canSubmit ? 0 : 1,
+              borderColor: "#e2e8f0",
             }}
           >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                backgroundColor: "#2196F3",
-                borderRadius: 20,
-                justifyContent: "center",
-                alignItems: "center",
-                marginRight: 12,
-              }}
-            >
-              <Text style={{ fontSize: 20, color: "white" }}>🎓</Text>
-            </View>
-            <View style={{ flex: 1 }}>
+            {!busy && (
+              <Ionicons
+                name="person-add"
+                size={18}
+                color={canSubmit ? "white" : "#94a3b8"}
+                style={{ marginRight: 8 }}
+              />
+            )}
+            {busy ? (
+              <ActivityIndicator color="white" size="small" />
+            ) : (
               <Text
-                style={{ fontSize: 15, fontWeight: "600", color: "#212529" }}
+                style={{
+                  color: canSubmit ? "white" : "#94a3b8",
+                  textAlign: "center",
+                  fontWeight: "700",
+                  fontSize: 16,
+                }}
               >
-                Teacher Sign In
+                Create Teacher Account
               </Text>
-              <Text style={{ fontSize: 13, color: "#6c757d" }}>
-                Access existing account
-              </Text>
-            </View>
-            <Text style={{ color: "#6c757d", fontSize: 16 }}>→</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => router.replace("/signin")}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              padding: 12,
-              borderRadius: 8,
-              backgroundColor: "#f8f9fa",
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                backgroundColor: "#4CAF50",
-                borderRadius: 20,
-                justifyContent: "center",
-                alignItems: "center",
-                marginRight: 12,
-              }}
-            >
-              <Text style={{ fontSize: 20, color: "white" }}>📚</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{ fontSize: 15, fontWeight: "600", color: "#212529" }}
-              >
-                Student Portal
-              </Text>
-              <Text style={{ fontSize: 13, color: "#6c757d" }}>
-                Continue your learning journey
-              </Text>
-            </View>
-            <Text style={{ color: "#6c757d", fontSize: 16 }}>→</Text>
+            )}
           </Pressable>
         </View>
+        {/* </ScrollView> */}
       </View>
-
+      {/*  School Picker Modal */}
       <Modal
         visible={showSchoolPicker}
         transparent={true}
@@ -524,35 +556,31 @@ export default function TeacherSignUp() {
         <Pressable
           style={{
             flex: 1,
-            backgroundColor: "rgba(0,0,0,0.5)",
+            backgroundColor: "rgba(0,0,0,0.6)",
             justifyContent: "center",
             alignItems: "center",
-            padding: 20,
+            padding: 24,
           }}
           onPress={() => setShowSchoolPicker(false)}
         >
           <View
             style={{
               backgroundColor: "#fff",
-              borderRadius: 16,
-              padding: 20,
+              borderRadius: 24,
+              padding: 24,
               width: "100%",
-              maxWidth: 300,
+              maxWidth: 320,
               maxHeight: "70%",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
+              ...createShadowStyle(12, "#000", 0.3, 24),
             }}
           >
             <Text
               style={{
-                fontSize: 18,
-                fontWeight: "700",
+                fontSize: 20,
+                fontWeight: "800",
                 textAlign: "center",
-                marginBottom: 16,
-                color: "#212529",
+                marginBottom: 20,
+                color: "#1e293b",
               }}
             >
               Select School
@@ -568,22 +596,22 @@ export default function TeacherSignUp() {
                       setShowSchoolPicker(false);
                     }}
                     style={{
-                      padding: 12,
-                      borderRadius: 12,
+                      padding: 16,
+                      borderRadius: 16,
                       backgroundColor:
-                        schoolSlug === school.slug ? "#2196F3" : "#f8f9fa",
+                        schoolSlug === school.slug ? "#8e44ad" : "#f8fafc",
                       borderWidth: 2,
                       borderColor:
-                        schoolSlug === school.slug ? "#2196F3" : "#e9ecef",
+                        schoolSlug === school.slug ? "#8e44ad" : "#e2e8f0",
+                      ...(schoolSlug === school.slug ? createShadowStyle(2, "#8e44ad", 0.1) : {}),
                     }}
                   >
                     <Text
                       style={{
                         textAlign: "center",
-                        fontWeight: "600",
-                        fontSize: 14,
-                        color:
-                          schoolSlug === school.slug ? "white" : "#212529",
+                        fontWeight: "700",
+                        fontSize: 16,
+                        color: schoolSlug === school.slug ? "white" : "#1e293b",
                       }}
                     >
                       {school.name}
@@ -595,6 +623,13 @@ export default function TeacherSignUp() {
           </View>
         </Pressable>
       </Modal>
-    </ScrollView>
+
+      {/* Floating Portal Switcher */}
+      <AuthPortalSwitcher
+        title="Already have an account?"
+        currentPortal="teacher-signup"
+        headerColor="#8e44ad"
+      />
+    </View>
   );
 }
