@@ -10,4 +10,7 @@ config.transformer.minifierConfig = {
   },
 };
 
+// Add resolver config for better module handling
+config.resolver.sourceExts = [...config.resolver.sourceExts, 'mjs'];
+
 module.exports = config;

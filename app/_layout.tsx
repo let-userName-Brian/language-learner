@@ -1,4 +1,5 @@
 import { supabase } from "@/services/supabase-init";
+import { useAuth, useLessons } from "@/store/store";
 import type { Session } from "@supabase/supabase-js";
 import { Redirect, Slot, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
@@ -11,6 +12,8 @@ export default function RootLayout() {
     null
   );
   const [ready, setReady] = useState(false);
+  const { actions: authActions } = useAuth();
+  const { actions: lessonsActions } = useLessons();
 
   useEffect(() => {
     let mounted = true;
@@ -22,6 +25,12 @@ export default function RootLayout() {
 
         const uid = data.session?.user?.id;
         if (uid) {
+          console.log("Initializing store from session...");
+          await authActions.loadUser();
+          // Load all dashboard data once at app startup
+          await lessonsActions.loadDashboardData();
+          console.log("Store initialized from session");
+
           const { data: prof } = await supabase
             .from("user_profiles")
             .select("role")

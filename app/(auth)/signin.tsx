@@ -1,5 +1,6 @@
 import AuthPortalSwitcher from "@/components/AuthPortalSwitcher";
 import { showErrorAlert } from "@/components/ShowAlert";
+import { useAuth, useLessons } from "@/store/store";
 import { createShadowStyle } from "@/utils/shadowStyles";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -20,48 +21,53 @@ function normalizeName(n: string) {
 export default function SignIn() {
   const [studentId, setStudentId] = useState("");
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
+  const { user, loading: authLoading, actions: authActions } = useAuth();
+  const { actions: lessonsActions } = useLessons(); // Move this to top level
 
   useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (data.session) router.replace("/home");
-      } catch (e) {
-        console.log("signin error", e);
-      }
-    })();
-  }, []);
+    // Check if already signed in on mount
+    if (user) {
+      router.replace("/home");
+    } else {
+      // Load user state from session
+      authActions.loadUser();
+    }
+  }, [user]);
 
   const canSubmit = useMemo(() => {
     const idOk = /^\d{3,}$/.test(studentId.trim());
     const nameOk = normalizeName(name).length >= 2;
-    return idOk && nameOk && !busy;
-  }, [studentId, name, busy]);
+    return idOk && nameOk && !authLoading;
+  }, [studentId, name, authLoading]);
 
   const doSignIn = async () => {
     if (!canSubmit) return;
-    setBusy(true);
+    
     try {
       const id = studentId.trim();
       const nmDisplay = normalizeName(name);
       const nmLower = nmDisplay.toLowerCase();
 
       let schoolSlug: string | null = null;
+      let schoolId: string | null = null;
+      let schoolName: string | null = null; // Add this
+
       try {
         const { data: studentData } = await supabase
           .from("user_profiles")
           .select(`
             school_id,
-            schools:schools(slug)
+            schools:schools(slug, name)
           `)
           .eq("student_id", id)
           .eq("role", "student")
           .eq("display_name", nmDisplay)
           .maybeSingle();
         
-        if (studentData?.schools?.[0]?.slug) {
+        if (studentData?.schools?.[0]) {
           schoolSlug = studentData.schools[0].slug;
+          schoolId = studentData.school_id;
+          schoolName = studentData.schools[0].name; // Store the name
         }
       } catch {
         // Fallback if lookup fails
@@ -71,10 +77,11 @@ export default function SignIn() {
       const email = `${id}+${slug}@example.org`;
       const password = `${slug}:${id}:${nmLower}`;
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
       if (error) {
         const msg =
           error.code === "invalid_credentials"
@@ -82,10 +89,24 @@ export default function SignIn() {
             : error.message || "Sign in failed.";
         throw new Error(msg);
       }
+
+      // ✅ Set user data with school info
+      console.log("🚀 Setting user data with school info...");
+      await authActions.setUserFromSignin(
+        authData.user, 
+        authData.session, 
+        { slug: slug, id: schoolId || '', name: schoolName || undefined }
+      );
+
+      // ✅ Load all dashboard data in one call
+      await lessonsActions.loadDashboardData();
+
+      console.log("✅ Store populated with dashboard data");
+      router.replace("/home");
+      
     } catch (e: any) {
+      console.log("🚨 Error in doSignIn:", e);
       showErrorAlert(e?.message ?? String(e));
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -241,13 +262,13 @@ export default function SignIn() {
               color: "#1e293b",
               marginBottom: 8,
             }}>
-              <Text style={{ fontWeight: "700" }}>Full Name</Text>
+              <Text style={{ fontWeight: "700" }}>First Name</Text>
             </Text>
             <View style={{ position: "relative" }}>
               <TextInput
                 value={name}
                 onChangeText={setName}
-                placeholder="Enter your full name"
+                placeholder="Enter your first name"
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="words"
                 style={{
@@ -294,7 +315,7 @@ export default function SignIn() {
               borderColor: "#e2e8f0",
             }}
           >
-            {!busy && (
+            {!authLoading && (
               <Ionicons 
                 name="log-in" 
                 size={18} 
@@ -302,7 +323,7 @@ export default function SignIn() {
                 style={{ marginRight: 8 }} 
               />
             )}
-            {busy ? (
+            {authLoading ? (
               <ActivityIndicator color="white" size="small" />
             ) : (
               <Text style={{

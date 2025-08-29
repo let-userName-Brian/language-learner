@@ -30,18 +30,20 @@ export const CircularProgress = ({
         }} />
         
         {/* Progress circle - rotated to start at 12 o'clock */}
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: 'transparent',
-          borderTopColor: color,
-          transform: [{ rotate: `${-90 + (percentage / 100) * 360}deg` }],
-        }} />
+        {percentage > 0 && (
+          <View style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: strokeWidth,
+            borderColor: 'transparent',
+            borderTopColor: color,
+            transform: [{ rotate: `${-90 + (percentage / 100) * 360}deg` }],
+          }} />
+        )}
         
         {/* Additional segments for smoother appearance */}
         {percentage > 25 && (

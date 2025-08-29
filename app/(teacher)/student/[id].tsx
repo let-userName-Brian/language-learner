@@ -142,7 +142,7 @@ export default function StudentDetailScreen() {
 
       // Get total lessons and progress data
       const [lessonsResult, progressResult] = await Promise.all([
-        supabase.from("lessons").select("id"),
+        supabase.from("lessons").select("id, title, unit_id, order"),
         supabase.from("progress").select(`
           lesson_id, status, updated_at, last_position, user_id, lessons(title)
         `),
@@ -729,7 +729,7 @@ export default function StudentDetailScreen() {
                     </View>
                     <Text style={{ fontSize: 16, fontWeight: '600', color: '#2c3e50', marginLeft: 24 }}>
                       {parent.first_name ? (
-                        `${parent.first_name} ${parent.last_name}`
+                        `${parent.first_name}${parent.last_name ? ` ${parent.last_name}` : ""}`
                       ) : (
                         <Text style={{ fontStyle: 'italic', color: '#6c757d' }}>
                           No name on file
@@ -812,7 +812,10 @@ export default function StudentDetailScreen() {
                           }}>
                             <Pressable
                               onPress={() => {
-                                resendParentEmail(parent.email, parent.first_name ? `${parent.first_name} ${parent.last_name}` : 'Parent');
+                                const parentName = parent.first_name 
+                                  ? `${parent.first_name}${parent.last_name ? ` ${parent.last_name}` : ""}`
+                                  : 'Parent';
+                                resendParentEmail(parent.email, parentName);
                                 toggleParentMenu(parent.user_id);
                               }}
                               style={{

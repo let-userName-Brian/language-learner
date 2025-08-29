@@ -1,5 +1,6 @@
 import ErrorPage, { ErrorPages } from "@/components/ErrorPage";
 import { SectionSkeleton } from "@/components/SectionSkeleton";
+import { useLessons } from "@/store/store";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer } from "expo-audio";
 import { router, useLocalSearchParams } from "expo-router";
@@ -20,7 +21,6 @@ import {
   getPreferredDialect,
   preloadItemAudio,
 } from "../../../services/audio";
-import { supabase } from "../../../services/supabase-init";
 
 type ItemRow = {
   id: string;
@@ -33,11 +33,13 @@ type ItemRow = {
 };
 
 export default function SectionScreen() {
+  const lessons = useLessons();
   const params = useLocalSearchParams<{
     id?: string | string[];
     type?: string | string[];
     from?: string;
   }>();
+  
 
   const lessonId = Array.isArray(params.id) ? params.id[0] : params.id;
   const sectionType = Array.isArray(params.type) ? params.type[0] : params.type;
@@ -92,32 +94,54 @@ export default function SectionScreen() {
     loadSectionItems();
   }, [lessonId, sectionType]);
 
-  const loadSectionItems = async () => {
+  const loadSectionItems = async (retryCount = 0) => {
     setLoading(true);
     try {
-      // Get lesson info first
-      const { data: lessonData, error: lessonError } = await supabase
-        .from("lessons")
-        .select("id, title")
-        .eq("id", lessonId)
-        .single();
-
-      if (lessonError) throw lessonError;
-      if (lessonData) {
-        setLessonTitle(lessonData.title);
+      if (!lessonId) {
+        setErr("No lesson ID provided");
+        return;
+      }
+      let currentLessonData = lessons.lessons.find(l => l.id === lessonId);
+      
+      if (!currentLessonData) {
+        await lessons.actions.loadDashboardData();
+        currentLessonData = lessons.lessons.find(l => l.id === lessonId);
+        
+        if (!currentLessonData && retryCount === 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await lessons.actions.loadDashboardData();
+          currentLessonData = lessons.lessons.find(l => l.id === lessonId);
+        }
+      }
+      
+      if (!currentLessonData) {
+        console.error("Lesson not found:", lessonId);
+        setErr("Lesson not found");
+        return;
       }
 
-      // Then get section items
-      const { data: it, error: ie } = await supabase
-        .from("items")
-        .select("*")
-        .eq("lesson_id", lessonId)
-        .eq("kind", sectionType)
-        .order("id");
+      setLessonTitle(currentLessonData.title);
+      let it = lessons.items[lessonId];  
+      if (!it || it.length === 0) {
+        const itemsData = await lessons.actions.loadLessonItems(lessonId);
+        it = itemsData;
+      } 
 
-      if (ie) throw ie;
+      if (!it || it.length === 0) {
+        console.error("No items found at all for lesson:", { lessonId });
+        setErr("No lesson content found");
+        return;
+      }
 
-      const sectionItems = (it || []) as ItemRow[];
+      // Filter items by section type
+      const sectionItems = (it || []).filter((item: ItemRow) => item.kind === sectionType);
+      
+      if (sectionItems.length === 0) {
+        console.error("No items found for section:", { lessonId, sectionType, availableTypes: [...new Set(it.map(item => item.kind))] });
+        setErr(`No ${sectionType} content found`);
+        return;
+      }
+
       setItems(sectionItems);
 
       if (sectionItems.length > 0)
@@ -165,10 +189,8 @@ export default function SectionScreen() {
   };
 
   const sectionInfo = getSectionInfo();
-  // Use viewed items for progress, not current item position
   const progressPercentage = items.length > 0 ? (viewedItems.size / items.length) * 100 : 0;
-  const viewedPercentage =
-    items.length > 0 ? (viewedItems.size / items.length) * 100 : 0;
+ 
 
   const play = async () => {
     if (!currentItem) return;
@@ -234,71 +256,27 @@ export default function SectionScreen() {
 
   const completeSection = async () => {
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) {
-        showErrorBanner("Please sign in to save progress");
-        return;
-      }
-
-      // Get existing progress
-      const { data: existingProgress } = await supabase
-        .from("progress")
-        .select("last_position")
-        .eq("user_id", user.user.id)
-        .eq("lesson_id", lessonId)
-        .maybeSingle();
-
-      const completedSections =
-        existingProgress?.last_position?.completed_sections || [];
-      const updatedSections = [...new Set([...completedSections, sectionType])];
-
-      // Check if ALL sections are now complete by getting lesson's section types
-      const { data: lessonItems } = await supabase
-        .from("items")
-        .select("kind")
-        .eq("lesson_id", lessonId);
-
-      const uniqueSectionTypes = [
-        ...new Set(lessonItems?.map((item) => item.kind) || []),
-      ];
-      const allSectionsComplete = uniqueSectionTypes.every((type) =>
-        updatedSections.includes(type)
-      );
-
-      const payload = {
-        user_id: user.user.id,
-        lesson_id: lessonId,
-        status: allSectionsComplete ? "completed" : "in_progress",
-        last_position: {
-          completed_sections: updatedSections,
-          section_type: sectionType,
-        },
-        updated_at: new Date().toISOString(),
-      };
-
-      await supabase
-        .from("progress")
-        .upsert(payload, { onConflict: "user_id,lesson_id" });
-
-      if (allSectionsComplete) {
+      const result = await lessons.actions.completeSection(lessonId as string, sectionType as string);
+      
+      if (result.allSectionsComplete) {
         showSuccessBanner("🎉 Lesson completed!", () => {
           if (from === "lessons") router.push("/(student)/lessons");
-          else router.push(`/lesson/${lessonId}?from=lessons`);
+          else router.push(`/(student)/lesson/${lessonId}?from=lessons`);
         });
       } else {
         showSuccessBanner(`✓ ${sectionInfo.title} completed!`, () => {
           if (from === "lessons") router.push("/(student)/lessons");
-          else router.push(`/lesson/${lessonId}?from=lessons`);
+          else router.push(`/(student)/lesson/${lessonId}?from=lessons`);
         });
       }
-    } catch (error) {
-      showErrorBanner("Failed to save progress");
+    } catch (error: any) {
+      showErrorBanner(error.message || "Failed to save progress");
     }
   };
 
   const handleBack = () => {
     if (from === "lessons") router.push("/(student)/lessons");
-    else if (from === "lesson") router.push(`/lesson/${lessonId}?from=lessons`);
+    else if (from === "lesson") router.push(`/(student)/lesson/${lessonId}?from=lessons`);
     else router.push("/(student)/lessons");
   };
 
@@ -306,6 +284,7 @@ export default function SectionScreen() {
 
   if (err || !currentItem) {
     if (err) {
+      console.log("Error loading section screen:", err);
       return (
         <ErrorPage
           title="Section Error"

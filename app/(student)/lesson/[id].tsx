@@ -1,18 +1,12 @@
 import { CircularProgress } from "@/components/CircularProgress";
 import ErrorPage, { ErrorPages } from "@/components/ErrorPage";
 import { LessonItemSkeleton } from "@/components/LessonItemSkeleton";
+import { useLessons } from "@/store/store";
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import {
-  Pressable,
-  ScrollView,
-  Text,
-  View
-} from "react-native";
-import { supabase } from "../../../services/supabase-init";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
-type LessonRow = { id: string; title: string };
 type ItemRow = {
   id: string;
   lesson_id: string;
@@ -34,19 +28,20 @@ type ItemSection = {
 };
 
 export default function LessonScreen() {
+  const lessons = useLessons();
   const params = useLocalSearchParams<{
     id?: string | string[];
     from?: string;
   }>();
   const lessonId = Array.isArray(params.id) ? params.id[0] : params.id;
   const from = params.from || "home";
-
-  const [lesson, setLesson] = useState<LessonRow | null>(null);
   const [sections, setSections] = useState<ItemSection[]>([]);
+  const [lessonData, setLessonData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [completedSections, setCompletedSections] = useState<Set<string>>(
-    new Set()
+  const completedSections = new Set(
+    lessons.progress[lessonId as string]?.last_position?.completed_sections ||
+      []
   );
 
   useEffect(() => {
@@ -54,31 +49,52 @@ export default function LessonScreen() {
     loadLessonData();
   }, [lessonId]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (sections.length > 0) loadSectionProgress(sections);
-    }, [sections, lessonId])
-  );
-
   const loadLessonData = async () => {
     setLoading(true);
     setErr(null);
     try {
-      const { data: l, error: le } = await supabase
-        .from("lessons")
-        .select("*")
-        .eq("id", lessonId)
-        .single();
-      if (le) throw le;
+      if (!lessonId) {
+        setErr("No lesson ID provided");
+        return;
+      }
 
-      const { data: it, error: ie } = await supabase
-        .from("items")
-        .select("*")
-        .eq("lesson_id", lessonId)
-        .order("id");
-      if (ie) throw ie;
+      // Use store data (should be available from centralized initialization)
+      let currentLessonData = lessons.lessons.find((l) => l.id === lessonId);
 
-      setLesson(l as LessonRow);
+      if (!currentLessonData) {
+        // Fallback: load data if somehow missing (shouldn't happen normally)
+        await lessons.actions.loadDashboardData();
+        currentLessonData = lessons.lessons.find((l) => l.id === lessonId);
+      }
+
+      if (!currentLessonData) {
+        console.error("Lesson data not found in store:", {
+          lessonId,
+          availableLessons: lessons.lessons.map((l) => l.id),
+        });
+        setErr("Lesson not found");
+        return;
+      }
+
+      // Check if lesson items are already in store first
+      let it = lessons.items[lessonId];
+
+      // If not in store, load them
+      if (!it || it.length === 0) {
+        const itemsData = await lessons.actions.loadLessonItems(lessonId);
+        it = itemsData || [];
+      }
+
+      if (!it || it.length === 0) {
+        setErr("No lesson content found");
+        return;
+      }
+
+      setLessonData(currentLessonData);
+      const lesson = {
+        id: currentLessonData.id,
+        title: currentLessonData.title,
+      };
 
       // Organize items into pedagogical sections
       const itemsByType = (it || []).reduce(
@@ -130,34 +146,11 @@ export default function LessonScreen() {
         }));
 
       setSections(organizedSections);
-
-      await loadSectionProgress(organizedSections);
     } catch (e: any) {
+      console.log("Error loading [id]:", e);
       setErr(e.message ?? "Failed to load lesson");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadSectionProgress = async (sections: ItemSection[]) => {
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
-
-      const { data: progress } = await supabase
-        .from("progress")
-        .select("lesson_id, status, last_position")
-        .eq("user_id", user.user.id)
-        .eq("lesson_id", lessonId)
-        .maybeSingle();
-
-      if (progress?.last_position?.completed_sections) {
-        setCompletedSections(
-          new Set(progress.last_position.completed_sections)
-        );
-      }
-    } catch (error) {
-      console.error("Error loading progress:", error);
     }
   };
 
@@ -203,8 +196,9 @@ export default function LessonScreen() {
 
   if (loading) return <LessonItemSkeleton />;
 
-  if (err || !lesson) {
+  if (err || !lessonData) {
     if (err) {
+      console.log("Error loading [id]:", err);
       return (
         <ErrorPage
           title="Failed to Load Lesson"
@@ -218,42 +212,49 @@ export default function LessonScreen() {
     return ErrorPages.LessonNotFound();
   }
 
-  const completionPercentage = sections.length > 0 ? (completedSections.size / sections.length) * 100 : 0;
+  const completionPercentage =
+    sections.length > 0 ? (completedSections.size / sections.length) * 100 : 0;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f8fafc" }}>
       {/* Enhanced Header - Match lessons page size */}
-      <View style={{
-        backgroundColor: "#667eea",
-        paddingTop: 20,
-        paddingBottom: 16,
-        paddingHorizontal: 20,
-        height: 100,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-      }}>
+      <View
+        style={{
+          backgroundColor: "#667eea",
+          paddingTop: 20,
+          paddingBottom: 16,
+          paddingHorizontal: 20,
+          height: 100,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+        }}
+      >
         {/* Subtle overlay */}
-        <View style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: "rgba(118, 75, 162, 0.3)",
-        }} />
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(118, 75, 162, 0.3)",
+          }}
+        />
 
-        <View style={{ 
-          flexDirection: "row", 
-          alignItems: "center", 
-          gap: 16,
-          position: "relative",
-          zIndex: 1,
-          marginTop: 'auto',
-          marginBottom: 'auto',
-        }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 16,
+            position: "relative",
+            zIndex: 1,
+            marginTop: "auto",
+            marginBottom: "auto",
+          }}
+        >
           <Pressable
             onPress={handleBack}
             style={{
@@ -271,25 +272,29 @@ export default function LessonScreen() {
           </Pressable>
 
           <View style={{ flex: 1 }}>
-            <Text style={{
-              fontSize: 20,
-              fontWeight: "800",
-              color: "white",
-              marginBottom: 2,
-            }}>
-              {lesson.title}
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "800",
+                color: "white",
+                marginBottom: 2,
+              }}
+            >
+              {lessonData?.title || "Loading..."}
             </Text>
-            <Text style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.9)",
-              fontWeight: "500",
-            }}>
+            <Text
+              style={{
+                fontSize: 12,
+                color: "rgba(255,255,255,0.9)",
+                fontWeight: "500",
+              }}
+            >
               {completedSections.size} of {sections.length} sections completed
             </Text>
           </View>
 
           {/* Circular Progress - Match lessons page size */}
-          <CircularProgress 
+          <CircularProgress
             percentage={completionPercentage}
             size={48}
             strokeWidth={4}
@@ -307,7 +312,8 @@ export default function LessonScreen() {
         {/* Enhanced Section Cards */}
         {sections.map((section, index) => {
           const isCompleted = completedSections.has(section.type);
-          const isLocked = index > 0 && !completedSections.has(sections[index - 1].type);
+          const isLocked =
+            index > 0 && !completedSections.has(sections[index - 1].type);
           const colors = getSectionColor(section.type);
 
           return (
@@ -327,37 +333,53 @@ export default function LessonScreen() {
               }}
             >
               {/* Enhanced Section Header */}
-              <View style={{
-                backgroundColor: isCompleted ? colors.background : isLocked ? "#f8fafc" : colors.background,
-                padding: 20,
-                borderBottomWidth: 1,
-                borderBottomColor: "#f1f5f9",
-              }}>
-                <View style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}>
-                  <View style={{
+              <View
+                style={{
+                  backgroundColor: isCompleted
+                    ? colors.background
+                    : isLocked
+                    ? "#f8fafc"
+                    : colors.background,
+                  padding: 20,
+                  borderBottomWidth: 1,
+                  borderBottomColor: "#f1f5f9",
+                }}
+              >
+                <View
+                  style={{
                     flexDirection: "row",
                     alignItems: "center",
-                    gap: 16,
-                    flex: 1,
-                  }}>
-                    {/* Enhanced Icon */}
-                    <View style={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: 24,
-                      backgroundColor: isCompleted ? "#4CAF50" : isLocked ? "#94a3b8" : colors.main,
-                      justifyContent: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
                       alignItems: "center",
-                      shadowColor: isCompleted ? "#4CAF50" : colors.main,
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 4,
-                      elevation: 3,
-                    }}>
+                      gap: 16,
+                      flex: 1,
+                    }}
+                  >
+                    {/* Enhanced Icon */}
+                    <View
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        backgroundColor: isCompleted
+                          ? "#4CAF50"
+                          : isLocked
+                          ? "#94a3b8"
+                          : colors.main,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        shadowColor: isCompleted ? "#4CAF50" : colors.main,
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 4,
+                        elevation: 3,
+                      }}
+                    >
                       <Ionicons
                         name={getSectionIcon(section.type) as any}
                         size={24}
@@ -367,67 +389,85 @@ export default function LessonScreen() {
 
                     <View style={{ flex: 1 }}>
                       {/* Section Badge */}
-                      <View style={{
-                        backgroundColor: isCompleted ? "#4CAF5020" : `${colors.main}15`,
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                        borderRadius: 8,
-                        alignSelf: "flex-start",
-                        marginBottom: 4,
-                      }}>
-                        <Text style={{
-                          fontSize: 10,
-                          color: isCompleted ? "#4CAF50" : colors.main,
-                          fontWeight: "700",
-                          textTransform: "uppercase",
-                          letterSpacing: 0.5,
-                        }}>
+                      <View
+                        style={{
+                          backgroundColor: isCompleted
+                            ? "#4CAF5020"
+                            : `${colors.main}15`,
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                          borderRadius: 8,
+                          alignSelf: "flex-start",
+                          marginBottom: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            color: isCompleted ? "#4CAF50" : colors.main,
+                            fontWeight: "700",
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                          }}
+                        >
                           Section {index + 1}
                         </Text>
                       </View>
 
-                      <Text style={{
-                        fontSize: 18,
-                        fontWeight: "800",
-                        color: isLocked ? "#64748b" : "#1e293b",
-                        marginBottom: 2,
-                      }}>
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontWeight: "800",
+                          color: isLocked ? "#64748b" : "#1e293b",
+                          marginBottom: 2,
+                        }}
+                      >
                         {section.title}
                       </Text>
-                      <Text style={{
-                        fontSize: 14,
-                        color: "#64748b",
-                        fontWeight: "500",
-                      }}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#64748b",
+                          fontWeight: "500",
+                        }}
+                      >
                         {section.items.length} items to learn
                       </Text>
                     </View>
                   </View>
 
                   {/* Enhanced Status Badge */}
-                  <View style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    backgroundColor: isCompleted ? "#4CAF50" : isLocked ? "#94a3b8" : colors.main,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    shadowColor: isCompleted ? "#4CAF50" : colors.main,
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.3,
-                    shadowRadius: 4,
-                    elevation: 2,
-                  }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: isCompleted
+                        ? "#4CAF50"
+                        : isLocked
+                        ? "#94a3b8"
+                        : colors.main,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      shadowColor: isCompleted ? "#4CAF50" : colors.main,
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 4,
+                      elevation: 2,
+                    }}
+                  >
                     {isCompleted ? (
                       <Ionicons name="checkmark" size={20} color="white" />
                     ) : isLocked ? (
                       <Ionicons name="lock-closed" size={16} color="white" />
                     ) : (
-                      <Text style={{
-                        color: "white",
-                        fontSize: 16,
-                        fontWeight: "800",
-                      }}>
+                      <Text
+                        style={{
+                          color: "white",
+                          fontSize: 16,
+                          fontWeight: "800",
+                        }}
+                      >
                         {index + 1}
                       </Text>
                     )}
@@ -438,56 +478,70 @@ export default function LessonScreen() {
               {/* Enhanced Section Content */}
               <View style={{ padding: 20 }}>
                 {isLocked ? (
-                  <View style={{
-                    alignItems: "center",
-                    paddingVertical: 20,
-                  }}>
-                    <View style={{
-                      backgroundColor: "#f8fafc",
-                      paddingHorizontal: 16,
-                      paddingVertical: 12,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: "#e2e8f0",
-                    }}>
-                      <Text style={{
-                        fontSize: 16,
-                        color: "#64748b",
-                        textAlign: "center",
-                        fontWeight: "600",
-                      }}>
+                  <View
+                    style={{
+                      alignItems: "center",
+                      paddingVertical: 20,
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: "#f8fafc",
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: "#e2e8f0",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          color: "#64748b",
+                          textAlign: "center",
+                          fontWeight: "600",
+                        }}
+                      >
                         Complete "{sections[index - 1]?.title}" first
                       </Text>
                     </View>
                   </View>
                 ) : isCompleted ? (
-                  <View style={{
-                    alignItems: "center",
-                    paddingVertical: 20,
-                  }}>
-                    <View style={{
-                      backgroundColor: "#4CAF5010",
-                      paddingHorizontal: 20,
-                      paddingVertical: 16,
-                      borderRadius: 16,
-                      borderWidth: 1,
-                      borderColor: "#4CAF5040",
-                    }}>
-                      <Text style={{
-                        fontSize: 18,
-                        fontWeight: "700",
-                        color: "#4CAF50",
-                        textAlign: "center",
-                        marginBottom: 4,
-                      }}>
+                  <View
+                    style={{
+                      alignItems: "center",
+                      paddingVertical: 20,
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: "#4CAF5010",
+                        paddingHorizontal: 20,
+                        paddingVertical: 16,
+                        borderRadius: 16,
+                        borderWidth: 1,
+                        borderColor: "#4CAF5040",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontWeight: "700",
+                          color: "#4CAF50",
+                          textAlign: "center",
+                          marginBottom: 4,
+                        }}
+                      >
                         Section Completed! 🎉
                       </Text>
-                      <Text style={{
-                        fontSize: 14,
-                        color: "#388E3C",
-                        textAlign: "center",
-                        fontWeight: "500",
-                      }}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#388E3C",
+                          textAlign: "center",
+                          fontWeight: "500",
+                        }}
+                      >
                         You've mastered this section
                       </Text>
                     </View>
@@ -496,12 +550,14 @@ export default function LessonScreen() {
                   <View style={{ gap: 16 }}>
                     {/* Enhanced Preview */}
                     <View>
-                      <Text style={{
-                        fontSize: 16,
-                        fontWeight: "700",
-                        color: "#1e293b",
-                        marginBottom: 12,
-                      }}>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "700",
+                          color: "#1e293b",
+                          marginBottom: 12,
+                        }}
+                      >
                         What you'll learn:
                       </Text>
                       {section.items.slice(0, 3).map((item, itemIndex) => (
@@ -519,30 +575,37 @@ export default function LessonScreen() {
                             borderLeftColor: colors.main,
                           }}
                         >
-                          <View style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 4,
-                            backgroundColor: colors.main,
-                          }} />
-                          <Text style={{
-                            fontSize: 15,
-                            color: "#334155",
-                            flex: 1,
-                            fontWeight: "500",
-                          }} numberOfLines={1}>
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: colors.main,
+                            }}
+                          />
+                          <Text
+                            style={{
+                              fontSize: 15,
+                              color: "#334155",
+                              flex: 1,
+                              fontWeight: "500",
+                            }}
+                            numberOfLines={1}
+                          >
                             {item.latin}
                           </Text>
                         </View>
                       ))}
                       {section.items.length > 3 && (
-                        <Text style={{
-                          fontSize: 13,
-                          color: "#64748b",
-                          marginTop: 8,
-                          fontWeight: "500",
-                          textAlign: "center",
-                        }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            color: "#64748b",
+                            marginTop: 8,
+                            fontWeight: "500",
+                            textAlign: "center",
+                          }}
+                        >
                           +{section.items.length - 3} more items to discover
                         </Text>
                       )}
@@ -567,19 +630,27 @@ export default function LessonScreen() {
                         elevation: 4,
                       }}
                     >
-                      <View style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 8,
-                      }}>
-                        <Text style={{
-                          color: "white",
-                          fontSize: 16,
-                          fontWeight: "700",
-                        }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: "white",
+                            fontSize: 16,
+                            fontWeight: "700",
+                          }}
+                        >
                           Start {section.title}
                         </Text>
-                        <Ionicons name="arrow-forward" size={16} color="white" />
+                        <Ionicons
+                          name="arrow-forward"
+                          size={16}
+                          color="white"
+                        />
                       </View>
                     </Pressable>
                   </View>
@@ -591,50 +662,58 @@ export default function LessonScreen() {
 
         {/* Enhanced Overall Completion */}
         {allSectionsCompleted && (
-          <View style={{
-            backgroundColor: "white",
-            padding: 24,
-            borderRadius: 20,
-            alignItems: "center",
-            shadowColor: "#4CAF50",
-            shadowOffset: { width: 0, height: 8 },
-            shadowOpacity: 0.2,
-            shadowRadius: 16,
-            elevation: 8,
-            borderWidth: 2,
-            borderColor: "#4CAF5040",
-          }}>
-            <View style={{
-              width: 80,
-              height: 80,
-              borderRadius: 40,
-              backgroundColor: "#4CAF50",
-              justifyContent: "center",
+          <View
+            style={{
+              backgroundColor: "white",
+              padding: 24,
+              borderRadius: 20,
               alignItems: "center",
-              marginBottom: 16,
               shadowColor: "#4CAF50",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 4,
-            }}>
+              shadowOffset: { width: 0, height: 8 },
+              shadowOpacity: 0.2,
+              shadowRadius: 16,
+              elevation: 8,
+              borderWidth: 2,
+              borderColor: "#4CAF5040",
+            }}
+          >
+            <View
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 40,
+                backgroundColor: "#4CAF50",
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 16,
+                shadowColor: "#4CAF50",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+            >
               <Ionicons name="trophy" size={40} color="white" />
             </View>
-            <Text style={{
-              fontSize: 24,
-              fontWeight: "800",
-              color: "#4CAF50",
-              marginBottom: 8,
-            }}>
+            <Text
+              style={{
+                fontSize: 24,
+                fontWeight: "800",
+                color: "#4CAF50",
+                marginBottom: 8,
+              }}
+            >
               Lesson Complete!
             </Text>
-            <Text style={{
-              fontSize: 16,
-              color: "#388E3C",
-              textAlign: "center",
-              fontWeight: "500",
-              lineHeight: 22,
-            }}>
+            <Text
+              style={{
+                fontSize: 16,
+                color: "#388E3C",
+                textAlign: "center",
+                fontWeight: "500",
+                lineHeight: 22,
+              }}
+            >
               Excellent work! You've mastered all sections{"\n"}of this lesson.
             </Text>
           </View>

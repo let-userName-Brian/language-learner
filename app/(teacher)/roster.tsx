@@ -59,13 +59,11 @@ export default function TeacherRoster() {
 
   const handleUploadComplete = (uploadResults: any[]) => {
     setResults(uploadResults);
-    console.log("uploadResults", uploadResults);
     loadStudents(true);
   };
 
   const handleStudentAdded = (studentResult: any) => {
     setResults((prev) => [studentResult, ...prev]);
-    console.log("studentResult", studentResult);
     loadStudents(true);
   };
 
@@ -663,7 +661,7 @@ export default function TeacherRoster() {
               </View>
               {results.slice(0, 3).map((result, index) => (
                 <View
-                  key={index}
+                  key={`${result.student_id}-${index}`}
                   style={{
                     flexDirection: 'row',
                     justifyContent: 'space-between',

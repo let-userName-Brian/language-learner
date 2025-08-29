@@ -4,9 +4,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.2";
 type Row = {
   student_id: string;
   first_name: string;
-  last_name: string;
   grade_level: string;
   parent_email: string;
+  parent_first_name?: string;
+  parent_last_name?: string;
 };
 
 serve(async (req) => {
@@ -82,20 +83,32 @@ serve(async (req) => {
 
     // Update the provision function to handle existing accounts
     for (const r of rows as Row[]) {
+      console.log('Processing row:', r);
       const sid = r.student_id?.trim();
       const firstName = r.first_name?.trim();
-      const lastName = r.last_name?.trim();
-      const nameDisplay = `${firstName} ${lastName}`
-        .replace(/\s+/g, " ")
-        .trim();
+      const nameDisplay = firstName.trim(); // Students only have first names
       const grade = r.grade_level?.trim();
+      console.log(`Student: ${sid}, Grade: ${grade}`);
       const parentEmail = r.parent_email?.trim();
+      const parentFirstName = r.parent_first_name?.trim();
+      const parentLastName = r.parent_last_name?.trim();
+      
+      // Build parent display name
+      let parentDisplayName = `Parent of ${nameDisplay}`;
+      if (parentFirstName && parentLastName) {
+        parentDisplayName = `${parentFirstName} ${parentLastName}`;
+      } else if (parentFirstName) {
+        parentDisplayName = parentFirstName;
+      }
 
-      if (!sid || !firstName || !lastName || !grade) {
+      // Track parent email changes for reporting
+      let currentParentEmails: string[] = [];
+
+      if (!sid || !firstName || !grade) {
         results.push({
           student_id: sid,
           status: "error",
-          error: "missing required fields",
+          error: "missing required fields (student_id, first_name, grade_level required)",
         });
         continue;
       }
@@ -119,13 +132,40 @@ serve(async (req) => {
           .from("user_profiles")
           .update({
             first_name: firstName,
-            last_name: lastName,
             display_name: nameDisplay,
             grade_level: grade,
             school_id,
-            roles: ["student"], // Ensure roles array is correct
+            roles: ["student"],
           })
           .eq("user_id", userId);
+
+        // Check for existing parent relationships and compare emails
+        if (parentEmail) {
+          const { data: existingLinks } = await supa
+            .from("parent_student_links")
+            .select(`
+              parent_user_id,
+              user_profiles!parent_student_links_parent_user_id_fkey(email)
+            `)
+            .eq("student_user_id", userId)
+            .eq("school_id", school_id);
+
+          currentParentEmails = existingLinks?.map((link: any) => 
+            link.user_profiles?.email
+          ).filter(Boolean) || [];
+
+          console.log(`Existing parent emails for student ${sid}:`, currentParentEmails);
+          console.log(`New parent email from CSV:`, parentEmail);
+
+          if (!currentParentEmails.includes(parentEmail)) {
+            // Parent email has changed or is new - process the new parent
+            console.log(`Parent email change detected for student ${sid}: adding ${parentEmail}`);
+          } else {
+            // Parent email unchanged - skip parent processing
+            console.log(`Parent email unchanged for student ${sid}: ${parentEmail}`);
+            parentEmail = null; // Skip parent processing below
+          }
+        }
       } else {
         // Create new student - use same format as signup
         const email = `${sid}+${school_slug}@example.org`;
@@ -134,7 +174,7 @@ serve(async (req) => {
         const authRes = await supa.auth.admin.createUser({
           email,
           password,
-          email_confirm: true, // Skip email confirmation
+          email_confirm: true,
           user_metadata: {
             student_id: sid,
             display_name: nameDisplay,
@@ -158,7 +198,6 @@ serve(async (req) => {
         await supa.from("user_profiles").upsert({
           user_id: userId,
           first_name: firstName,
-          last_name: lastName,
           display_name: nameDisplay,
           role: "student",
           roles: ["student"], 
@@ -180,6 +219,16 @@ serve(async (req) => {
 
       // 2) Handle parent account
       if (parentEmail) {
+        console.log(`Processing parent account for: ${parentEmail} (Display: ${parentDisplayName})`);
+        
+        // Check if this is a dummy/example email domain
+        const isExampleEmail = parentEmail.includes('@example.') || 
+                              parentEmail.includes('@test.') ||
+                              parentEmail.includes('@dummy.');
+        
+        if (isExampleEmail) {
+          console.log(`Detected example email domain for ${parentEmail} - creating local parent profile without invitation`);
+        }
         try {
           // Check if parent already exists by email
           const { data: existingParent, error: listErr } = await supa.auth.admin.listUsers({
@@ -191,6 +240,8 @@ serve(async (req) => {
             console.error("Error listing users for parent check:", listErr);
             results.push({
               student_id: sid,
+              user_id: userId,
+              grade_level: r.grade_level,
               status: "ok",
               existing: !!existingStudent,
               warning: "Parent check failed - could not verify existing users",
@@ -215,7 +266,9 @@ serve(async (req) => {
             // Ensure parent profile exists in user_profiles table
             await supa.from("user_profiles").upsert({
               user_id: parentUserId,
-              display_name: `Parent of ${nameDisplay}`,
+              display_name: parentDisplayName,
+              first_name: parentFirstName,
+              last_name: parentLastName,
               role: "parent",
               roles: ["parent"],
               school_id,
@@ -230,7 +283,7 @@ serve(async (req) => {
                 const activationResponse = await supa.auth.admin.inviteUserByEmail(parentEmail, {
                   data: {
                     role: "parent",
-                    display_name: `Parent of ${nameDisplay}`,
+                    display_name: parentDisplayName,
                     school_slug,
                   },
                   redirectTo: `http://localhost:8081/parent-signin`
@@ -264,20 +317,40 @@ serve(async (req) => {
               }
             }
           } else {
-            // Invite new parent account - this sends an email invitation
-            const parentAuthRes = await supa.auth.admin.inviteUserByEmail(parentEmail, {
-              data: {
-                role: "parent",
-                display_name: `Parent of ${nameDisplay}`,
-                school_slug,
-              },
-              redirectTo: `http://localhost:8081/parent-signin`
-            });
+            let parentAuthRes;
+            
+            if (isExampleEmail) {
+              // Create parent directly without email invitation for example domains
+              parentAuthRes = await supa.auth.admin.createUser({
+                email: parentEmail,
+                password: `temp-password-${Date.now()}`, // Temporary password
+                email_confirm: true, // Auto-confirm for example emails
+                user_metadata: {
+                  role: "parent",
+                  display_name: parentDisplayName,
+                  school_slug,
+                }
+              });
+              console.log(`Created parent account without invitation for example email: ${parentEmail}`);
+            } else {
+              // Invite new parent account - this sends an email invitation
+              parentAuthRes = await supa.auth.admin.inviteUserByEmail(parentEmail, {
+                data: {
+                  role: "parent",
+                  display_name: parentDisplayName,
+                  school_slug,
+                },
+                redirectTo: `http://localhost:8081/parent-signin`
+              });
+            }
 
             if (parentAuthRes.error || !parentAuthRes.data.user) {
-              console.error("Failed to invite parent:", parentAuthRes.error);
+              console.error("Failed to invite parent:", parentEmail, "Error:", parentAuthRes.error);
+              console.error("Full auth response:", parentAuthRes);
               results.push({
                 student_id: sid,
+                user_id: userId,
+                grade_level: r.grade_level,
                 status: "ok",
                 existing: !!existingStudent,
                 warning: "Parent invitation failed",
@@ -290,7 +363,9 @@ serve(async (req) => {
             // Create parent profile immediately (even before they accept the invitation)
             await supa.from("user_profiles").upsert({
               user_id: parentUserId,
-              display_name: `Parent of ${nameDisplay}`,
+              display_name: parentDisplayName,
+              first_name: parentFirstName,
+              last_name: parentLastName,
               role: "parent",
               roles: ["parent"],
               school_id,
@@ -320,6 +395,8 @@ serve(async (req) => {
               console.error("parent_student_links error:", linkError);
               results.push({
                 student_id: sid,
+                user_id: userId,
+                grade_level: r.grade_level,
                 status: "ok",
                 existing: !!existingStudent,
                 warning: "Parent account created but relationship link failed",
@@ -332,6 +409,8 @@ serve(async (req) => {
             console.error("parent_student_links table error:", linkError);
             results.push({
               student_id: sid,
+              user_id: userId,
+              grade_level: r.grade_level,
               status: "ok",
               existing: !!existingStudent,
               warning: "Parent account created but relationship link failed",
@@ -343,19 +422,29 @@ serve(async (req) => {
           console.error("Parent account process failed:", parentError);
           results.push({
             student_id: sid,
+            user_id: userId,
+            grade_level: r.grade_level,
             status: "ok",
             existing: !!existingStudent,
             warning: "Parent account creation failed",
           });
           continue;
         }
+      } else {
+        console.log(`No parent email provided for student ${sid}`);
       }
 
-      results.push({
+      const resultEntry = {
         student_id: sid,
+        user_id: userId,
+        grade_level: r.grade_level,
         status: "ok",
         existing: !!existingStudent,
-      });
+        parent_processed: !!r.parent_email,
+        parent_email_changed: existingStudent && !!r.parent_email && currentParentEmails.length > 0 && !currentParentEmails.includes(r.parent_email),
+      };
+      console.log('Adding result entry:', resultEntry);
+      results.push(resultEntry);
     }
 
     return new Response(JSON.stringify({ ok: true, results }), {

@@ -8,7 +8,7 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../services/supabase-init";
-import { showErrorAlert, showSuccessAlert } from "./ShowAlert";
+import { showErrorBanner, showSuccessBanner } from "./ShowAlert";
 
 interface AddStudentModalProps {
   visible: boolean;
@@ -19,7 +19,6 @@ interface AddStudentModalProps {
 interface StudentFormData {
   student_id: string;
   first_name: string;
-  last_name: string;
   grade_level: string;
   parent_email: string;
 }
@@ -34,7 +33,6 @@ export default function AddStudentModal({
   const [formData, setFormData] = useState<StudentFormData>({
     student_id: "",
     first_name: "",
-    last_name: "",
     grade_level: "",
     parent_email: "",
   });
@@ -53,11 +51,6 @@ export default function AddStudentModal({
     if (!formData.first_name.trim()) {
       errors.push("First Name is required");
     }
-
-    if (!formData.last_name.trim()) {
-      errors.push("Last Name is required");
-    }
-
     if (!formData.grade_level.trim()) {
       errors.push("Grade Level is required");
     } else if (!GRADE_LEVELS.includes(formData.grade_level.trim())) {
@@ -78,8 +71,8 @@ export default function AddStudentModal({
   const handleSubmit = async () => {
     const errors = validateForm();
     if (errors.length > 0) {
-      showErrorAlert(
-        `Please fix the following errors:\n\n${errors.join("\n")}`
+      showErrorBanner(
+        `Please fix the following errors: ${errors.join(", ")}`
       );
       return;
     }
@@ -88,7 +81,7 @@ export default function AddStudentModal({
     try {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) {
-        showErrorAlert("You must be signed in");
+        showErrorBanner("You must be signed in");
         return;
       }
 
@@ -100,7 +93,7 @@ export default function AddStudentModal({
         .single();
 
       if (profileError || !teacherProfile?.school_id) {
-        showErrorAlert("Teacher profile missing school information");
+        showErrorBanner("Teacher profile missing school information");
         return;
       }
 
@@ -112,7 +105,7 @@ export default function AddStudentModal({
         .single();
 
       if (schoolError) {
-        showErrorAlert("Could not load school information");
+        showErrorBanner("Could not load school information");
         return;
       }
 
@@ -143,7 +136,7 @@ export default function AddStudentModal({
           .single();
 
         if (!newYear) {
-          showErrorAlert("Could not create academic year");
+          showErrorBanner("Could not create academic year");
           return;
         }
         currentYear = newYear;
@@ -169,7 +162,6 @@ export default function AddStudentModal({
               {
                 student_id: formData.student_id.trim(),
                 first_name: formData.first_name.trim(),
-                last_name: formData.last_name.trim(),
                 grade_level: formData.grade_level.trim(),
                 parent_email: formData.parent_email.trim(),
               },
@@ -181,8 +173,9 @@ export default function AddStudentModal({
       const result = await response.json();
 
       if (result.ok) {
-        showSuccessAlert(
-          `Student ${formData.first_name} ${formData.last_name} added successfully!`,
+        const studentName = formData.first_name;
+        showSuccessBanner(
+          `Student ${studentName} added successfully!`,
           () => {
             resetForm();
             onStudentAdded(result);
@@ -190,10 +183,10 @@ export default function AddStudentModal({
           }
         );
       } else {
-        showErrorAlert(result.error || "Failed to add student");
+        showErrorBanner(result.error || "Failed to add student");
       }
     } catch (error) {
-      showErrorAlert("Failed to add student");
+      showErrorBanner("Failed to add student");
       console.error(error);
     } finally {
       setSubmitting(false);
@@ -204,7 +197,6 @@ export default function AddStudentModal({
     setFormData({
       student_id: "",
       first_name: "",
-      last_name: "",
       grade_level: "",
       parent_email: "",
     });
@@ -214,7 +206,6 @@ export default function AddStudentModal({
     return (
       formData.student_id.trim() !== "" &&
       formData.first_name.trim() !== "" &&
-      formData.last_name.trim() !== "" &&
       formData.grade_level.trim() !== "" &&
       formData.parent_email.trim() !== ""
     );
@@ -341,35 +332,6 @@ export default function AddStudentModal({
                   style={{
                     borderWidth: 2,
                     borderColor: formData.first_name ? "#2196F3" : "#e9ecef",
-                    borderRadius: 12,
-                    padding: 12,
-                    fontSize: 16,
-                    backgroundColor: "#f8f9fa",
-                  }}
-                />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 14,
-                    fontWeight: "600",
-                    color: "#212529",
-                    marginBottom: 6,
-                  }}
-                >
-                  Last Name
-                </Text>
-                <TextInput
-                  value={formData.last_name}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, last_name: text })
-                  }
-                  placeholder="Johnson"
-                  autoCapitalize="words"
-                  style={{
-                    borderWidth: 2,
-                    borderColor: formData.last_name ? "#2196F3" : "#e9ecef",
                     borderRadius: 12,
                     padding: 12,
                     fontSize: 16,

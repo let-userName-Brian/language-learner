@@ -55,36 +55,77 @@ export default function TeacherHome() {
         .eq("user_id", user.user.id)
         .single();
 
-      // Get total lessons count
-      const { data: lessonsData } = await supabase
-        .from("lessons")
-        .select("id, title");
-      const totalLessons = lessonsData?.length || 0;
-
-      // Get all students from user_profiles
+      // Get students enrolled in courses at this teacher's school
       const { data: studentsData } = await supabase
         .from("user_profiles")
         .select("user_id, display_name")
         .eq("role", "student")
         .eq("school_id", teacherProfile.school_id);
 
-      // Get all progress data with lesson titles
-      const { data: progressData } = await supabase.from("progress").select(`
-          user_id,
-          lesson_id,
-          status,
-          updated_at,
-          lessons:lessons(title)
-        `);
+      // Get enrolled students and their assigned lessons
+      const { data: enrollmentData } = await supabase
+        .from("student_course_enrollments")
+        .select(`
+          student_user_id,
+          courses!inner(
+            id, title,
+            units!inner(
+              id,
+              lessons!inner(id, title)
+            )
+          )
+        `)
+        .eq("courses.school_id", teacherProfile.school_id)
+        .eq("is_active", true);
 
-      if (studentsData && progressData) {
-        const totalStudents = studentsData.length;
+      // Calculate total assigned lessons (lessons from enrolled courses)
+      const assignedLessons = new Set();
+      enrollmentData?.forEach(enrollment => {
+        const courses = enrollment.courses as any;
+        if (courses.units) {
+          courses.units.forEach((unit: any) => {
+            if (unit.lessons) {
+              unit.lessons.forEach((lesson: any) => {
+                assignedLessons.add(lesson.id);
+              });
+            }
+          });
+        }
+      });
+      const totalLessons = assignedLessons.size;
+
+      // Get progress data only for enrolled students and assigned lessons
+      const enrolledStudentIds = enrollmentData?.map(e => e.student_user_id) || [];
+      const assignedLessonIds = Array.from(assignedLessons);
+
+      let progressData: any[] = [];
+      if (enrolledStudentIds.length > 0 && assignedLessonIds.length > 0) {
+        const { data: progress } = await supabase
+          .from("progress")
+          .select(`
+            user_id,
+            lesson_id,
+            status,
+            updated_at,
+            lessons:lessons(title)
+          `)
+          .in("user_id", enrolledStudentIds)
+          .in("lesson_id", assignedLessonIds);
+        progressData = progress || [];
+      }
+
+      if (studentsData && progressData !== null) {
+        // Only count enrolled students for metrics
+        const enrolledStudents = studentsData.filter(student => 
+          enrolledStudentIds.includes(student.user_id)
+        );
+        const totalStudents = enrolledStudents.length;
 
         // Students with any completed lesson in last 7 days
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        const activeStudents = studentsData.filter((student) =>
+        const activeStudents = enrolledStudents.filter((student) =>
           progressData.some(
             (p: any) =>
               p.user_id === student.user_id &&
@@ -98,11 +139,11 @@ export default function TeacherHome() {
           (p: any) => p.status === "completed"
         ).length;
 
-        // Recent activity - last 10 completions with proper lesson titles
+        // Recent activity - last 10 completions with proper lesson titles (enrolled students only)
         const recentCompletions = progressData
           .filter((p: any) => p.status === "completed")
           .map((p: any) => {
-            const student = studentsData.find((s) => s.user_id === p.user_id);
+            const student = enrolledStudents.find((s) => s.user_id === p.user_id);
             return {
               student_name: student?.display_name || "Unknown Student",
               lesson_title: p.lessons?.title || "Unknown Lesson",
@@ -116,8 +157,8 @@ export default function TeacherHome() {
           )
           .slice(0, 10);
 
-        // Calculate completion counts per student
-        const studentStats = studentsData.map((student) => ({
+        // Calculate completion counts per enrolled student
+        const studentStats = enrolledStudents.map((student) => ({
           student_name: student.display_name,
           completed_count: progressData.filter(
             (p: any) =>
@@ -331,7 +372,7 @@ export default function TeacherHome() {
                   color: '#6c757d',
                   marginBottom: 16,
                 }}>
-                  {analytics?.completedLessons || 0} of {(analytics?.totalStudents || 0) * (analytics?.totalLessons || 0)} total lessons completed
+                  {analytics?.completedLessons || 0} of {(analytics?.totalStudents || 0) * (analytics?.totalLessons || 0)} assigned lessons completed
                 </Text>
                 
                 <View style={{
